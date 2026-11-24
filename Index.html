@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#F3F4F6; --card:#FFFFFF; --ink:#0F172A; --muted:#64748B; --line:#E2E8F0;
+      --field:#F8FAFC; --accent:#2563EB; --accent-soft:#DBEAFE; --ok:#16A34A; --ok-soft:#DCFCE7;
+      --danger:#DC2626; --danger-soft:#FEE2E2; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+    .wrap{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+    .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+    @media (min-width:1000px){
+      .wrap{max-width:1000px}
+      .layout{grid-template-columns:minmax(0,640px) 320px;justify-content:center;align-items:start}
+      .tasks{grid-column:1}
+      #form{grid-column:1}
+      .overview{grid-column:2;grid-row:1 / span 2;position:sticky;top:20px}
+    }
+    @media (min-width:1320px){
+      .wrap{max-width:1320px}
+      .layout{grid-template-columns:310px minmax(0,640px) 300px}
+      .tasks{grid-column:1;grid-row:1}
+      #form{grid-column:2;grid-row:1}
+      .overview{grid-column:3;grid-row:1}
+    }
+
+    /* Header */
+    .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
+    .brand{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+    h1{margin:4px 0 0;font-size:24px;font-weight:700;letter-spacing:-.02em}
+    .clock{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;text-align:right;white-space:nowrap;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+    /* ===== TEST CLOCK (remove later) ===== */
+    .top-right{position:relative;z-index:46}   /* clock stays tappable above the blurred waiting screen */
+    .clock{cursor:pointer;font:inherit;color:inherit}
+    .clock.test{background:#FEF3C7;border-color:#F59E0B}
+    .clock .tst{display:none;font-size:9px;font-weight:800;letter-spacing:.1em;color:#fff;background:#D97706;border-radius:999px;padding:1px 6px;margin-right:6px;vertical-align:2px}
+    .clock.test .tst{display:inline-block}
+    .test-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:80;width:300px;background:#fff;border:1.5px solid #F59E0B;border-radius:16px;padding:14px;box-shadow:0 16px 40px rgba(15,23,42,.18);text-align:left}
+    .test-pop b{display:block;font-size:13px;margin-bottom:2px}
+    .test-pop p{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.4}
+    .test-pop input{font-size:15px;padding:9px 10px;margin-bottom:10px}
+    .test-pop .tp-btns{display:grid;gap:6px}
+    .test-pop button{border:0;border-radius:10px;padding:9px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+    .test-pop .tp-set{background:var(--ink);color:#fff}
+    .test-pop .tp-fresh{background:#FEF3C7;color:#92400E}
+    .test-pop .tp-real{background:#F1F5F9;color:var(--ink)}
+    /* ===== /TEST CLOCK ===== */
+    .clock .t{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+    .clock .d{font-size:11px;color:var(--muted)}
+    .top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .shift{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 10px;white-space:nowrap;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+    .shift .dot{width:9px;height:9px;border-radius:50%;background:var(--sh)}
+    .shift .n{font-size:13px;font-weight:700;line-height:1.2}
+    .shift .h{font-size:11px;color:var(--muted)}
+    [data-shift="Early"]{--sh:#F59E0B} [data-shift="Late"]{--sh:#2563EB} [data-shift="Night"]{--sh:#6D28D9}
+
+    /* MO rows */
+    /* MOs: one entry line + compact tags */
+    .mo-count{display:inline-block;margin-left:6px;min-width:22px;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;text-align:center;vertical-align:1px}
+    .mo-count:empty{display:none}
+    .mo-line{display:grid;grid-template-columns:1fr auto 46px;gap:8px;align-items:center}
+    .mo-prob{height:46px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--muted);font:inherit;font-size:14px;font-weight:600;padding:0 14px;display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap;transition:all .15s}
+    .mo-prob:hover{border-color:#F59E0B;color:#B45309}
+    .mo-prob.on{background:#FEF3C7;border-color:#F59E0B;color:#92400E}
+    .mo-prob .short{display:none}
+    .mo-problem{margin-top:8px;padding:12px;border-radius:var(--radius);background:#FFFBEB;border:1.5px solid #FDE68A}
+    .mo-problem label{font-size:13px;color:#92400E;margin-bottom:6px}
+    .mo-problem textarea{min-height:80px;background:#fff}
+    .prob-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+    .prob-head label{margin:0!important}
+    input.sw{width:160px;flex:none;margin:0!important;padding:8px 10px;font-size:14px;border-radius:10px;background:#fff}
+    .prob-foot{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:8px}
+    .send{display:inline-flex;align-items:center;gap:7px;border:0;background:#D97706;color:#fff;font:inherit;font-size:13px;font-weight:700;border-radius:10px;padding:9px 14px;cursor:pointer;transition:background .15s}
+    .send:hover{background:#B45309}
+    .send:disabled{opacity:.6;cursor:default}
+    .send.again{background:#fff;color:#92400E;border:1.5px solid #F59E0B;padding:7.5px 12.5px}
+    .sent-info{font-size:12px;font-weight:700;color:#166534;display:inline-flex;align-items:center;gap:5px}
+    .mo-tags{display:flex;flex-wrap:wrap;gap:8px}
+    .mo-tags:not(:empty){margin-top:12px}
+    .mo-tag{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:1.5px solid var(--line);background:#F1F5F9;color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums;transition:all .15s}
+    .mo-tag span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .mo-tag:hover{border-color:#CBD5E1;background:#fff}
+    .mo-tag.warn{background:#FEF3C7;border-color:#F59E0B;color:#92400E}
+    .mo-tag.sel{background:var(--ink);border-color:var(--ink);color:#fff}
+    .mo-tag svg{flex:none}
+    .mo-edit{margin-top:10px;padding:14px;border-radius:var(--radius);background:#fff;border:1.5px solid var(--ink);box-shadow:0 6px 18px rgba(15,23,42,.08)}
+    .mo-edit .lbl{font-size:13px;font-weight:600;margin-bottom:6px;display:block}
+    .mo-edit input{margin-bottom:12px}
+    .mo-edit textarea{min-height:80px}
+    .mo-edit .row{display:flex;justify-content:space-between;gap:10px;margin-top:10px}
+    .mo-edit .rm{border:1.5px solid #FECACA;background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:600;border-radius:10px;padding:8px 14px;cursor:pointer}
+    .mo-edit .ok{border:0;background:var(--ink);color:#fff;font:inherit;font-size:13px;font-weight:700;border-radius:10px;padding:8px 18px;cursor:pointer}
+    [hidden]{display:none!important}
+    .invalid[data-f="mosList"] input,.invalid[data-f="mosList"] textarea{border-color:var(--line)}
+    .invalid[data-f="mosList"] .bad{border-color:var(--danger)!important}
+
+    /* Checkboxes */
+    .checks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .check{display:flex;align-items:center;gap:12px;margin:0;padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--radius);background:var(--field);cursor:pointer;font-size:14px;font-weight:600;transition:all .15s;user-select:none}
+    .check:hover{border-color:#CBD5E1}
+    .check input{position:absolute;opacity:0;width:1px;height:1px}
+    .check .box{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid #CBD5E1;background:#fff;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .check .box svg{opacity:0;transition:opacity .1s}
+    .check:has(input:checked){border-color:var(--accent);background:#EFF6FF}
+    .check input:checked + .box{background:var(--accent);border-color:var(--accent)}
+    .check input:checked + .box svg{opacity:1}
+    .check input:focus-visible + .box{box-shadow:0 0 0 4px var(--accent-soft)}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .row2 label{font-size:13px}
+
+    /* Left panel: handover in, previous shift check, cleaning, end of shift */
+    .tasks{display:flex;flex-direction:column;gap:14px;min-width:0}
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 4px 24px rgba(15,23,42,.05)}
+    .panel h3{margin:0;font-size:15px;letter-spacing:-.01em}
+    .panel .ph{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+    .panel .sub{margin:-4px 0 10px;font-size:12px;color:var(--muted)}
+    .prog{flex:none;font-size:12px;font-weight:700;color:var(--muted);background:#F1F5F9;border-radius:999px;padding:3px 9px}
+    .prog.all{background:var(--ok-soft);color:var(--ok)}
+    .prog:empty{display:none}
+    .panel.attn{border-color:#F59E0B;box-shadow:0 0 0 4px #FEF3C7}
+    /* Between shifts: report sent, next shift not started yet */
+    .waiting{position:fixed;inset:0;z-index:45;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(241,245,249,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+    .waiting[hidden]{display:none}
+    .w-card{display:flex;flex-direction:column;align-items:center;text-align:center;width:100%;max-width:520px;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:44px 28px 32px;box-shadow:0 24px 60px rgba(15,23,42,.18)}
+    .w-card .w-icon{width:64px;height:64px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+    .w-card h2{margin:0 0 6px;font-size:22px;letter-spacing:-.02em}
+    .w-card .w-next{margin:0;font-size:18px;font-weight:600;color:var(--ink)}
+    .w-card .w-sub{margin:6px 0 0;font-size:14px;color:var(--muted)}
+    .w-card .w-clock{margin-top:14px;font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+    .w-card .w-wrong{margin-top:28px;padding-top:20px;border-top:1px solid var(--line);width:100%;font-size:13px;color:var(--muted)}
+    .w-card .w-wrong button{display:block;margin:8px auto 0;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:12px;padding:10px 16px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+    .w-card .w-wrong button:hover{border-color:#CBD5E1;background:#F8FAFC}
+    body.waiting-mode{overflow:hidden}
+    .overdue{background:#FFFBEB;border:1.5px solid #F59E0B;border-radius:16px;padding:12px 14px;font-size:13px;color:#92400E;line-height:1.45}
+    .overdue b{display:block;font-size:14px;margin-bottom:2px}
+    .overdue button{margin-top:8px;border:1.5px solid #F59E0B;background:#fff;color:#92400E;border-radius:10px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+    .ho-card{border:1.5px solid #C7D2FE;background:#EEF2FF;border-radius:14px;padding:12px}
+    .ho-card + .ho-card{margin-top:8px}
+    .ho-meta{font-size:11px;font-weight:600;color:#4338CA;margin-bottom:4px}
+    .ho-msg{font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+    .ho-btns{display:flex;gap:8px;margin-top:10px}
+    .ho-btns button{flex:1;border-radius:10px;padding:7px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+    .ho-keep{border:1.5px solid #C7D2FE;background:#fff;color:#4338CA}
+    .ho-close{border:0;background:#4338CA;color:#fff}
+    .ho-close.confirm{background:var(--danger)}
+    .ho-card.kept{padding:8px 12px;cursor:pointer;background:#F5F7FF}
+    .ho-card.kept .ho-msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:#4338CA}
+    .ho-card.kept .ho-meta,.ho-card.kept .ho-btns{display:none}
+    .yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .yn button{border:1.5px solid var(--line);background:var(--field);border-radius:12px;padding:10px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;color:var(--ink)}
+    .yn button.on-yes{background:var(--ok-soft);border-color:var(--ok);color:#166534}
+    .yn button.on-no{background:#FEF3C7;border-color:#F59E0B;color:#92400E}
+    .panel textarea{min-height:70px;margin-top:8px;font-size:14px;padding:10px 12px}
+    .task{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+    .task:first-child{border-top:0;padding-top:2px}
+    .task .tick{width:28px;height:28px;border-radius:8px;border:2px solid #CBD5E1;background:#fff;display:flex;align-items:center;justify-content:center;color:transparent;cursor:pointer;padding:0;transition:all .15s}
+    .task .tname{font-size:13.5px;line-height:1.3;cursor:pointer;user-select:none}
+    .task .nd{border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:4px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+    .task .why{grid-column:2 / -1;min-height:56px;margin-top:2px}
+    .task[data-status="done"] .tick{background:var(--ok);border-color:var(--ok);color:#fff}
+    .task[data-status="done"] .tname{color:var(--muted);text-decoration:line-through;text-decoration-color:#94A3B8}
+    .task[data-status="notdone"] .tick{border-color:#F59E0B}
+    .task[data-status="notdone"] .nd{background:#FEF3C7;border-color:#F59E0B;color:#92400E}
+    .task.missing .tick{border-color:#F59E0B;box-shadow:0 0 0 4px #FEF3C7}
+    .later{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;margin:0}
+    .later::before{content:'';flex:none;width:8px;height:8px;border-radius:50%;background:#CBD5E1}
+    .later.now{color:#92400E;font-weight:600}
+    .later.now::before{background:#F59E0B}
+    .prev-save{display:flex;justify-content:flex-end;margin-top:8px}
+    .prev-save button{display:inline-flex;align-items:center;gap:7px;border:0;background:var(--ink);color:#fff;border-radius:10px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+    .prev-done{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .prev-done span{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#166534}
+    .prev-done span::before{content:'✓';width:22px;height:22px;border-radius:50%;background:var(--ok-soft);display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+    .linkbtn{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;font-weight:600;text-decoration:underline;cursor:pointer;padding:4px}
+    .ph.toggle h3{flex:1;min-width:0}
+    .ph.toggle > span{flex:none}
+    .ph.toggle{width:100%;border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+    .chev{flex:none;width:28px;height:28px;border-radius:8px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:transform .2s}
+    .chev.up{transform:rotate(180deg)}
+    #endList,#cleanList{margin-top:10px}
+    #cleanNote{cursor:pointer;margin-top:2px}
+    .later.done{color:#166534;font-weight:600}
+    .later.done::before{background:var(--ok)}
+    .panel textarea#handover{min-height:90px;margin-top:0}
+    #hoSend:disabled{opacity:.6;cursor:default}
+    .ho-sent{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--ok-soft);font-size:12.5px;color:#166534;line-height:1.4}
+    .ho-sent b{font-weight:700}
+    .ho-sent span{display:block;color:#14532D;white-space:pre-wrap;word-break:break-word;margin-top:2px}
+    .m-input{width:100%;min-height:96px;margin:-6px 0 18px;font-size:15px;text-align:left}
+
+    /* Reminder pop-up (ethanol) */
+    .reminder{position:fixed;left:50%;top:16px;transform:translate(-50%,-140%);z-index:70;display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);width:440px;background:#1E3A8A;color:#fff;border-radius:16px;padding:12px 12px 12px 14px;box-shadow:0 16px 40px rgba(30,58,138,.35);transition:transform .25s ease-out,opacity .25s;opacity:0;pointer-events:none}
+    .reminder.show{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+    .reminder .ri{flex:none;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center}
+    .reminder .rt{flex:1;font-size:14px;line-height:1.35}
+    .reminder .rt b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75;margin-bottom:2px}
+    .reminder button{flex:none;border:0;background:#fff;color:#1E3A8A;border-radius:10px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+    .shift .h.late{color:#B45309;font-weight:700}
+
+    /* Important messages from managers / prepress (cannot be closed by printers) */
+    .important{margin-bottom:18px;background:#fff;border:2px solid #FCA5A5;border-radius:20px;padding:14px 16px;box-shadow:0 6px 24px rgba(185,28,28,.10)}
+    .imp-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .imp-badge{display:inline-flex;align-items:center;gap:6px;background:#B91C1C;color:#fff;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;border-radius:999px;padding:5px 12px}
+    .imp-head .imp-n{font-size:12px;color:#991B1B;font-weight:600}
+    .imp-list{display:grid;gap:8px}
+    @media (min-width:1000px){ .imp-list.two{grid-template-columns:1fr 1fr} }
+    .imp-item{display:flex;gap:10px;align-items:flex-start;background:#FEF2F2;border:1.5px solid #FECACA;border-left:5px solid #B91C1C;border-radius:12px;padding:10px 12px}
+    .imp-text{font-size:18px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+    .imp-meta{margin-top:4px;font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
+    .imp-meta .imp-tag{font-weight:700;color:var(--ink)}
+    .imp-chip{flex:none;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:3px 8px;background:#fff;border:1px solid #FECACA;color:#B91C1C;white-space:nowrap}
+
+    /* Shift overview */
+    .overview{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 4px 24px rgba(15,23,42,.05)}
+    .ov-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .ov-head h2{margin:0;font-size:16px}
+    .ov-head span{font-size:12px;color:var(--muted)}
+    .ov-line{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .ov-line + .ov-line{margin-top:12px}
+    .ov-title{background:#EEF2FF;color:#1E3A8A;font-weight:700;font-size:14px;padding:10px 14px}
+    .ov-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--line);font-size:14px}
+    .ov-row small{display:block;color:var(--muted);font-size:11px;font-weight:400}
+    .ov-row b{font-variant-numeric:tabular-nums;font-size:15px}
+    .ov-row b.na{color:#94A3B8;font-weight:500}
+    .ov-row.now{background:#F8FAFC}
+    .ov-row.now .lbl::after{content:'NOW';margin-left:8px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#fff;background:var(--sh);border-radius:999px;padding:2px 7px;vertical-align:2px}
+    .ov-row.total{background:#F1F5F9;font-weight:700}
+    .ov-row.week{background:#0F172A;color:#fff;font-weight:700}
+    .ov-row.week small{color:#94A3B8}
+    .ov-row.week b.na{color:#64748B}
+
+    /* Card */
+    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 4px 24px rgba(15,23,42,.05)}
+    .field{margin-bottom:20px}
+    .field:last-of-type{margin-bottom:8px}
+    label,.label{display:block;font-size:14px;font-weight:600;margin-bottom:8px}
+    .hint{font-weight:400;color:var(--muted);font-size:13px}
+    .req{color:var(--danger)}
+    input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:var(--radius);padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s,background .15s}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
+    textarea{resize:vertical;min-height:120px;line-height:1.45}
+    select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px;cursor:pointer}
+    select:invalid,select.empty{color:var(--muted)}
+    select option{color:var(--ink)}
+    select option[value=""]{color:var(--muted)}
+    .crew{display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:10px}
+    .crew select{padding-left:12px;padding-right:32px;background-position:right 10px center}
+    .crew input{padding-left:12px;padding-right:12px}
+    .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .row3 label{font-size:13px}
+
+    /* Email with fixed domain */
+
+    /* Downtime */
+    .dt{border:1.5px solid var(--line);border-radius:var(--radius);padding:16px;background:var(--field)}
+    .dt-top{display:flex;align-items:center;gap:16px}
+    .dt-read{flex:none;min-width:112px;padding:2px 0}
+    .dt-top .chip{padding:7px 12px}
+    .dt-top .chips{gap:6px}
+    .dt-big{font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+    .dt-big.zero{color:#94A3B8}
+    .dt-big.bump{animation:bump .25s ease-out}
+    @keyframes bump{50%{transform:scale(1.08)}}
+    .dt-read .human{font-size:13px;color:var(--muted);margin-top:4px}
+    .chips{flex:1;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+    .chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all .15s}
+    .chip:hover{border-color:#CBD5E1}
+    .chip:active{background:var(--ink);border-color:var(--ink);color:#fff}
+    .chip.clear{color:var(--muted);border-style:dashed}
+
+    /* Format change rows */
+    .fmt-row{display:grid;grid-template-columns:1fr 18px 1fr 46px;gap:8px;align-items:center}
+    .fmt-row + .fmt-row{margin-top:10px}
+    .fmt-row select{padding-left:12px;padding-right:30px;background-position:right 10px center}
+    .fmt-arrow{color:var(--muted);text-align:center;font-weight:600}
+    .fmt-btn{width:46px;height:46px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background .15s,transform .05s}
+    .fmt-btn:hover{background:#F1F5F9}
+    .fmt-btn:active{transform:scale(.95)}
+    .fmt-btn.add{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+    .fmt-btn.add:hover{background:#BFDBFE}
+    .reason{margin-top:14px}
+    .reason label{font-size:13px}
+
+    /* Photos */
+    .photos{margin-top:14px}
+    .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+    .upload{display:flex;align-items:center;gap:12px;border:1.5px dashed #CBD5E1;border-radius:var(--radius);background:#fff;padding:14px;cursor:pointer;margin:0;font-size:15px;font-weight:600;transition:border-color .15s,background .15s}
+    .upload:hover,#photoInput:focus-visible + .upload{border-color:var(--accent);background:#F8FAFF}
+    .upload .ic{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+    .upload small{display:block;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px}
+    .photos.drop .upload{border-color:var(--accent);border-style:solid;background:#EFF6FF;box-shadow:0 0 0 4px var(--accent-soft)}
+    .photos.drop .upload small{color:var(--accent);font-weight:600}
+    .photo-btns{display:grid;grid-template-columns:1fr auto;gap:10px}
+    .phone-btn{display:flex;align-items:center;gap:10px;border:1.5px dashed #CBD5E1;border-radius:var(--radius);background:#fff;padding:0 16px;font:inherit;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s}
+    .phone-btn:hover,.phone-btn.on{border-color:var(--accent);background:#F8FAFF}
+    .phone-btn svg{color:var(--accent)}
+    .qr-panel{display:flex;gap:18px;align-items:center;margin-top:12px;padding:16px;border-radius:var(--radius);background:#fff;border:1.5px solid var(--accent);box-shadow:0 6px 18px rgba(37,99,235,.10)}
+    .qr-box{flex:none;width:220px;height:220px;padding:6px;border-radius:12px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center}
+    .qr-box svg{width:100%;height:100%;display:block}
+    .qr-text b{display:block;font-size:15px;margin-bottom:4px}
+    .qr-text p{margin:0 0 6px;color:var(--muted);font-size:13px;line-height:1.45}
+    .qr-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ok)}
+    .qr-live::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 1.6s ease-in-out infinite}
+    @keyframes pulse{50%{opacity:.3}}
+.qr-text .qr-hint b{display:inline;font-size:inherit;margin:0}
+    .qr-hint{margin:8px 0 0;font-size:12px;line-height:1.4;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:6px 8px}
+    .qr-link{display:inline-block;margin-top:6px;font-size:12px;color:var(--accent);font-weight:600}
+    .qr-close{margin-top:8px;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+    .thumb .ph{position:absolute;left:5px;bottom:5px;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 7px;border-radius:999px;background:rgba(37,99,235,.9);color:#fff;font-size:10px;font-weight:700;letter-spacing:.03em}
+    .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px}
+    .thumbs:not(:empty){margin-top:12px}
+    .thumb{position:relative;aspect-ratio:1/1;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#E2E8F0}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumb .x{position:absolute;top:5px;right:5px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(15,23,42,.75);color:#fff;font-size:18px;line-height:28px;padding:0;cursor:pointer}
+    .thumb.loading::after{content:'';position:absolute;inset:0;margin:auto;width:22px;height:22px;border:2px solid #CBD5E1;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+
+    /* Errors */
+    .err{display:none;color:var(--danger);font-size:13px;margin:6px 2px 0}
+    .invalid .err{display:block}
+    .invalid input,.invalid select,.invalid textarea{border-color:var(--danger)}
+    .invalid[data-f="formats"] select{border-color:var(--line)}
+    .invalid[data-f="formats"] .fmt-row.bad select.empty{border-color:var(--danger)}
+
+    /* Footer */
+    .actions{display:flex;gap:12px;margin-top:22px}
+    .btn{flex:1;font:inherit;font-size:16px;font-weight:600;border-radius:var(--radius);padding:15px 18px;cursor:pointer;border:1.5px solid transparent;transition:background .15s,opacity .15s,transform .05s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+    .btn:active{transform:scale(.99)}
+    .btn-primary{background:var(--ink);color:#fff;flex:2}
+    .btn-primary:hover{background:#1E293B}
+    .btn-ghost{background:#fff;border-color:var(--line);color:var(--ink)}
+    .btn-ghost:hover{background:#F8FAFC}
+    .btn[disabled]{opacity:.6;cursor:default}
+    .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+    .busy .spinner{display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .version{text-align:center;font-size:11px;color:#94A3B8;margin-top:6px}
+    .saved{text-align:center;font-size:12px;color:var(--muted);margin-top:14px;min-height:16px}
+
+    /* Modal */
+    .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:50;backdrop-filter:blur(2px)}
+    .overlay.show{display:flex}
+    .modal{background:#fff;border-radius:20px;max-width:400px;width:100%;padding:26px;text-align:center;box-shadow:0 20px 50px rgba(15,23,42,.25);animation:pop .18s ease-out}
+    @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+    .m-icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+    .m-icon.ok{background:var(--ok-soft);color:var(--ok)}
+    .m-icon.warn{background:var(--danger-soft);color:var(--danger)}
+    .m-icon.amber{background:#FEF3C7;color:#B45309}
+    .modal h2{margin:0 0 6px;font-size:19px}
+    .modal p{margin:0 0 20px;color:var(--muted);font-size:15px;line-height:1.45}
+    .modal .actions{margin-top:0}
+
+    /* Toast */
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);background:var(--danger);color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:60}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast.good{background:var(--ok)}
+    .toast.warn{background:#FFFBEB;color:#92400E;border:1.5px solid #F59E0B;box-shadow:0 8px 24px rgba(146,64,14,.15);font-weight:600}
+    .fmt-btn.add.locked{background:#F1F5F9;color:#94A3B8}
+    .need{border-color:#F59E0B!important;box-shadow:0 0 0 4px #FEF3C7!important}
+    .send.need{box-shadow:0 0 0 4px #FDE68A!important}
+
+    @media (max-width:520px){
+      .row3{grid-template-columns:1fr}
+      .mo-line{grid-template-columns:1fr auto 44px;gap:6px}
+      .mo-prob{padding:0 10px;height:44px;gap:5px;font-size:13px}
+      .mo-line input{padding-left:12px;padding-right:10px}
+      .checks{grid-template-columns:1fr}
+      .prob-head{flex-wrap:wrap}
+      input.sw{width:100%}
+      .photo-btns{grid-template-columns:1fr}
+      .phone-btn{display:none}      /* already on a phone: just use Add photos */
+      .dt-top{flex-direction:column;gap:12px}
+      .dt-read{text-align:center}
+      .chips{justify-content:center}
+      .mo-prob .long{display:none}
+      .mo-prob .short{display:inline}
+      .top{flex-wrap:wrap}
+      .crew{grid-template-columns:1fr 1fr}
+      .crew #other{grid-column:1 / -1}
+      /* Phone: "from" on top, "to" underneath, button on the right */
+      .fmt-row{grid-template-columns:1fr 44px;grid-template-areas:"from btn" "to btn";gap:6px 8px}
+      .fmt-row .from{grid-area:from}
+      .fmt-row .to{grid-area:to;padding-left:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-position:12px center,right 10px center;background-repeat:no-repeat}
+      .fmt-arrow{display:none}
+      .fmt-row .fmt-btn{grid-area:btn}
+      .fmt-btn{width:44px;height:44px}
+      .fmt-row + .fmt-row{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+      .card{padding:18px}
+      h1{font-size:21px}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <div class="brand">NOMOQ · Print</div>
+      <h1>End of Shift Report</h1>
+    </div>
+    <div class="top-right">
+      <div class="shift" id="shiftBadge" data-shift="Early" title="Early 06–14 · Late 14–22 · Night 22–06">
+        <span class="dot"></span>
+        <div><div class="n" id="shiftName">Early shift</div><div class="h" id="shiftHours">06:00 – 14:00</div></div>
+      </div>
+      <button type="button" class="clock" id="clockBtn" aria-live="off" title="Test clock – tap to set date and time">
+        <div class="t"><span class="tst">TEST</span><span id="clockTime">--:--:--</span></div>
+        <div class="d" id="clockDate"></div>
+      </button>
+      <!-- ===== TEST CLOCK (remove later) ===== -->
+      <div class="test-pop" id="testPop" hidden>
+        <b>Test clock</b>
+        <p>Pretend it is another date and time. The whole form follows it (shift, cleaning schedule, 13:30 tasks, waiting screen). The sheet's Timestamp column still uses the real time.</p>
+        <input type="datetime-local" id="testDt" step="60">
+        <div class="tp-btns">
+          <button type="button" class="tp-set" id="testSet">Set time</button>
+          <button type="button" class="tp-fresh" id="testFresh">Set time + start an empty form for that shift</button>
+          <button type="button" class="tp-real" id="testReal">Back to real time</button>
+        </div>
+      </div>
+      <!-- ===== /TEST CLOCK ===== -->
+    </div>
+  </div>
+
+  <section class="important" id="important" hidden aria-live="polite" aria-label="Important messages">
+    <div class="imp-head">
+      <span class="imp-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>Important</span>
+      <span class="imp-n" id="impN"></span>
+    </div>
+    <div class="imp-list" id="impList"></div>
+  </section>
+
+  <div class="layout">
+  <section class="waiting" id="waiting" hidden aria-live="polite" role="dialog" aria-modal="true" aria-labelledby="wTitle">
+    <div class="w-card">
+      <div class="w-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <h2 id="wTitle">Report submitted</h2>
+      <p class="w-next" id="wNext"></p>
+      <p class="w-sub" id="wSub"></p>
+      <div class="w-clock" id="wClock"></div>
+      <div class="w-wrong">
+        Something wrong?
+        <button type="button" id="wAgain">Submit the report again</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="tasks" id="tasks" aria-label="Shift tasks">
+    <div class="overdue" id="overdue" hidden></div>
+
+    <section class="panel" id="hoInPanel" hidden>
+      <div class="ph"><h3>Handover from previous shifts</h3><span class="prog" id="hoCount"></span></div>
+      <div id="hoList"></div>
+    </section>
+
+    <section class="panel" id="prevPanel">
+      <div class="ph"><h3>Previous shift</h3></div>
+      <div id="prevAsk">
+        <p class="sub" style="margin-top:-4px">Did the previous shift leave everything clean, tidy and as it should be?</p>
+        <div class="yn">
+          <button type="button" id="prevYes">Yes</button>
+          <button type="button" id="prevNo">No</button>
+        </div>
+        <textarea id="prevReason" maxlength="1000" placeholder="What was not done properly?" hidden></textarea>
+        <div class="prev-save" id="prevSaveRow" hidden>
+          <button type="button" id="prevSave"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>Send</button>
+        </div>
+      </div>
+      <div class="prev-done" id="prevDone" hidden>
+        <span>Answer saved</span>
+        <button type="button" class="linkbtn" id="prevAgain">Answer again</button>
+      </div>
+    </section>
+
+    <section class="panel" id="cleanPanel">
+      <button type="button" class="ph toggle" id="cleanToggle" aria-expanded="true" aria-controls="cleanList">
+        <h3 id="cleanTitle">Cleaning schedule</h3>
+        <span style="display:flex;align-items:center;gap:8px"><span class="prog" id="cleanProg"></span><span class="chev" id="cleanChev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></span>
+      </button>
+      <p class="later" id="cleanNote" hidden></p>
+      <div id="cleanList"><p class="sub">Loading tasks…</p></div>
+    </section>
+
+    <section class="panel" id="endPanel">
+      <button type="button" class="ph toggle" id="endToggle" aria-expanded="false" aria-controls="endList">
+        <h3>Before finishing your shift</h3>
+        <span style="display:flex;align-items:center;gap:8px"><span class="prog" id="endProg"></span><span class="chev" id="endChev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></span>
+      </button>
+      <p class="later" id="endNote"></p>
+      <div id="endList" hidden></div>
+    </section>
+
+    <section class="panel" id="hoOutPanel">
+      <div class="ph"><h3>Handover to next shift</h3></div>
+      <p class="sub">Optional – the next shift sees it until someone closes it.</p>
+      <textarea id="handover" name="handover" maxlength="2000" rows="3" placeholder="e.g. Changeover done, but I did not have time to change and adjust the De-Pal"></textarea>
+      <div class="prev-save"><button type="button" id="hoSend"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg><span>Send to next shift</span></button></div>
+      <div id="hoSent"></div>
+    </section>
+  </aside>
+
+  <form class="card" id="form" novalidate autocomplete="off">
+
+    <div class="field" data-f="crew">
+      <span class="label">Who is working on press? <span class="req">*</span></span>
+      <div class="crew">
+        <select id="person1" name="person1" class="empty" aria-label="Person 1">
+          <option value="">Loading names…</option>
+        </select>
+        <select id="person2" name="person2" class="empty" aria-label="Person 2">
+          <option value="">Loading names…</option>
+        </select>
+        <input id="other" name="other" maxlength="60" placeholder="Other / guest name" aria-label="Other person or guest">
+      </div>
+      <p class="err">Please choose at least one person, or type a name.</p>
+    </div>
+
+    <div class="field" data-f="machine">
+      <label for="machine">Which machine? <span class="req">*</span></label>
+      <select id="machine" name="machine" required>
+        <option value="" disabled selected>On which machine are you working?</option>
+        <option value="Line 1">Line 1</option>
+        <option value="Line 2">Line 2</option>
+      </select>
+      <p class="err">Please choose a machine.</p>
+    </div>
+
+    <div class="field" data-f="mosList">
+      <span class="label">MOs printed <span class="mo-count" id="moCount"></span> <span class="hint">· type the MO, press + or Enter</span></span>
+      <div class="mo-line">
+        <input id="moEntry" maxlength="40" placeholder="MO number" aria-label="MO number" autocomplete="off">
+        <button type="button" class="mo-prob" id="moEntryProbBtn" aria-expanded="false"><span class="ic"></span><span class="long">Problem printing?</span><span class="short">Problem</span></button>
+        <button type="button" class="fmt-btn add" id="moAdd" aria-label="Add MO"></button>
+      </div>
+      <div class="mo-problem" id="moEntryProbBox" hidden>
+        <div class="prob-head">
+          <label for="moEntryProblem">Why can't this MO be printed?</label>
+          <input class="sw" id="moEntrySw" maxlength="30" placeholder="SW number" aria-label="SW number" autocomplete="off">
+        </div>
+        <textarea id="moEntryProblem" maxlength="1000" placeholder="e.g. Artwork file missing, wrong can size delivered, colour not matching approval…"></textarea>
+        <div class="prob-foot">
+          <span class="sent-info" id="moEntrySent"></span>
+          <button type="button" class="send" id="moEntrySend"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg><span>Send to managers</span></button>
+        </div>
+      </div>
+      <div class="mo-tags" id="moTags"></div>
+      <div class="mo-edit" id="moEdit" hidden>
+        <label class="lbl" for="moEditNo">MO number</label>
+        <input id="moEditNo" maxlength="40">
+        <div class="prob-head">
+          <label class="lbl" for="moEditProblem">Problem printing? <span class="hint">optional</span></label>
+          <input class="sw" id="moEditSw" maxlength="30" placeholder="SW number" aria-label="SW number" autocomplete="off">
+        </div>
+        <textarea id="moEditProblem" maxlength="1000" placeholder="Leave empty if it printed fine"></textarea>
+        <div class="prob-foot">
+          <span class="sent-info" id="moEditSent"></span>
+          <button type="button" class="send" id="moEditSend"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg><span>Send to managers</span></button>
+        </div>
+        <div class="row">
+          <button type="button" class="rm" id="moEditRemove">Remove MO</button>
+          <button type="button" class="ok" id="moEditDone">Done</button>
+        </div>
+      </div>
+      <p class="err" id="moErr">Please add the MO number for the problem you described.</p>
+    </div>
+
+    <div class="field checks">
+      <label class="check"><input type="checkbox" id="samples" name="samples"><span class="box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span>Samples printed</span></label>
+      <label class="check"><input type="checkbox" id="colourMatch" name="colourMatch"><span class="box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span>Colour matching upcoming jobs</span></label>
+    </div>
+
+    <div class="field" data-f="formats">
+      <span class="label">Format change</span>
+      <div id="fmtRows"></div>
+      <p class="err">Please choose both formats in each row (or clear the row).</p>
+    </div>
+
+    <div class="field" data-f="reason">
+      <span class="label">Machine downtime / breakdown <span class="hint">· approximate duration</span></span>
+      <div class="dt">
+        <input type="hidden" id="downtime" name="downtime" value="0">
+        <div class="dt-top">
+        <div class="dt-read" aria-live="polite">
+          <div class="dt-big zero" id="dtBig">0 min</div>
+          <div class="human" id="dtHuman">No downtime</div>
+        </div>
+        <div class="chips" id="chips">
+          <button type="button" class="chip" data-add="15">15 min</button>
+          <button type="button" class="chip" data-add="30">30 min</button>
+          <button type="button" class="chip" data-add="60">1 h</button>
+          <button type="button" class="chip" data-add="120">2 h</button>
+          <button type="button" class="chip" data-add="240">4 h</button>
+          <button type="button" class="chip clear" id="dtClear">Clear</button>
+        </div>
+        </div>
+        <div class="reason">
+          <label for="reason">What happened? <span class="req" id="reasonReq" hidden>*</span> <span class="hint">Reason, error, what was done</span></label>
+          <textarea id="reason" name="reason" rows="5" maxlength="2000" placeholder="e.g. Ink head error on Line 2, cleaned nozzles and restarted"></textarea>
+          <p class="err">Please describe what happened during the downtime.</p>
+        </div>
+        <div class="photos">
+          <input type="file" id="photoInput" accept="image/*" multiple class="vh">
+          <div class="photo-btns">
+            <label class="upload" for="photoInput">
+              <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+              <span>Add photos <small>Choose, or drag photos here · up to 6</small></span>
+            </label>
+            <button type="button" class="phone-btn" id="phoneBtn" aria-expanded="false">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>
+              Scan with phone
+            </button>
+          </div>
+          <div class="qr-panel" id="qrPanel" hidden>
+            <div class="qr-box" id="qrBox">Loading…</div>
+            <div class="qr-text">
+              <b>Scan with your phone camera</b>
+              <span class="qr-live">Waiting for photos</span><br>
+              <p class="qr-hint" id="qrHint">Opens <b>Google Drive</b> instead? Scan with <b>Chrome</b>: tap the camera icon in Chrome's search bar.</p>
+              <a class="qr-link" id="qrLink" href="#" target="_blank" rel="noopener" hidden>Test this link on the PC</a>
+              <button type="button" class="qr-close" id="qrClose">Close</button>
+            </div>
+          </div>
+          <div class="thumbs" id="thumbs"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" id="resetBtn">Reset</button>
+      <button type="submit" class="btn btn-primary" id="submitBtn"><span class="spinner"></span><span class="lbl">Submit report</span></button>
+    </div>
+    <div class="saved" id="saved"></div>
+    <div class="version">Version 2026-11-24 j</div>
+  </form>
+
+  <aside class="overview" id="overview" aria-label="Shift overview">
+    <div class="ov-head"><h2>Shift Overview</h2><span id="ovDay"></span></div>
+    <div id="ovLines"></div>
+  </aside>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="m-icon" id="mIcon"></div>
+    <h2 id="mTitle"></h2>
+    <p id="mText"></p>
+    <textarea id="mInput" class="m-input" maxlength="1000" hidden></textarea>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" id="mCancel"></button>
+      <button type="button" class="btn btn-primary" id="mOk"></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="reminder" id="reminder" role="status" aria-live="polite">
+  <span class="ri"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7S6 9.3 6 14a6 6 0 0 0 12 0c0-4.7-6-11.3-6-11.3z"/></svg></span>
+  <span class="rt"><b>Reminder</b><span id="reminderText">Remember to clean the palletiser fingers with ethanol</span></span>
+  <button type="button" id="reminderOk">OK</button>
+</div>
+
+<script>
+/* QR Code Generator for JavaScript 1.4.4 – Copyright (c) 2009 Kazuhiko Arase – MIT license – https://github.com/kazuhikoarase/qrcode-generator */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,(function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1}))},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(t,r){var e=n("友");if(2!=e.length||38726!=(e[0]<<8|e[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}((function(){return qrcode}));
+</script>
+<script>
+  /* ===== TEST CLOCK (remove later) =====
+   * Shifts the browser's clock by a saved offset so the form can be tested at any date/time.
+   * Everything that asks for "now" (new Date(), Date.now()) gets the test time.
+   */
+  var TEST_KEY = 'nomoq_eos_test_offset_v1';
+  var testOffset = 0;
+  try { testOffset = Number(localStorage.getItem(TEST_KEY)) || 0; } catch (e) {}
+  (function(){
+    var RealDate = Date;
+    function TestDate(){
+      if (!(this instanceof TestDate)) return new RealDate(RealDate.now() + testOffset).toString();
+      var a = arguments;
+      if (!a.length) return new RealDate(RealDate.now() + testOffset);
+      return new (Function.prototype.bind.apply(RealDate, [null].concat([].slice.call(a))))();
+    }
+    TestDate.prototype = RealDate.prototype;
+    TestDate.now = function(){ return RealDate.now() + testOffset; };
+    TestDate.UTC = RealDate.UTC; TestDate.parse = RealDate.parse;
+    TestDate.realNow = function(){ return RealDate.now(); };
+    window.Date = TestDate;
+  })();
+  /* ===== /TEST CLOCK ===== */
+
+  var KEY = 'nomoq_eos_draft_v1';
+  var FIELDS = ['person1','person2','other','machine','samples','colourMatch','downtime','reason','handover'];
+  function $(id){ return document.getElementById(id); }
+
+  /* ---------- Live clock ---------- */
+  var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function tick(){
+    var d = new Date();
+    $('clockTime').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    $('clockDate').textContent = DAYS[d.getDay()] + ' ' + pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear();
+  }
+  tick(); setInterval(tick, 1000);
+
+  /* ===== TEST CLOCK (remove later) ===== */
+  function paintTestClock(){ $('clockBtn').classList.toggle('test', !!testOffset); }
+  function toLocalInput(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function setTestTime(ms){
+    testOffset = ms == null ? 0 : ms - Date.realNow();
+    try { testOffset ? localStorage.setItem(TEST_KEY, String(testOffset)) : localStorage.removeItem(TEST_KEY); } catch (e) {}
+    paintTestClock(); tick();
+  }
+  function afterTimeChange(fresh){
+    if (fresh) { formShift.submitted = false; clearForm(); switchShift(clockShift()); }
+    else { renderShift(); renderTasks(); }
+    renderOverview(lastOverview); $('testPop').hidden = true;
+  }
+  $('clockBtn').addEventListener('click', function(e){
+    e.stopPropagation();
+    var pop = $('testPop'); pop.hidden = !pop.hidden;
+    if (!pop.hidden) $('testDt').value = toLocalInput(new Date());
+  });
+  $('testPop').addEventListener('click', function(e){ e.stopPropagation(); });
+  document.addEventListener('click', function(){ $('testPop').hidden = true; });
+  function readTestInput(){
+    var v = $('testDt').value;                       // "YYYY-MM-DDTHH:MM" in local time
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v);
+    if (!m) { toast('Pick a date and time first.'); return null; }
+    return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+  }
+  $('testSet').addEventListener('click', function(){ var t = readTestInput(); if (t == null) return; setTestTime(t); afterTimeChange(false); });
+  $('testFresh').addEventListener('click', function(){ var t = readTestInput(); if (t == null) return; setTestTime(t); afterTimeChange(true); });
+  $('testReal').addEventListener('click', function(){
+    setTestTime(null);
+    // Test left the form on a far-away shift → start fresh on the real shift.
+    afterTimeChange(Math.abs(shiftIdx(formShift) - shiftIdx(clockShift())) > 1);
+    toast('Back to real time', 'good');
+  });
+  paintTestClock();
+  /* ===== /TEST CLOCK ===== */
+
+  /* ---------- Draft autosave (survives a crash / PC switching off) ---------- */
+  function collect(){
+    var o = {};
+    FIELDS.forEach(function(f){ o[f] = $(f).type === 'checkbox' ? $(f).checked : $(f).value; });
+    o.formats = getFormatRows();
+    o.mos = getMoRows();
+    o.phoneToken = phoneToken; o.phoneUrl = phoneUrl;
+    o.prevCheck = { answer: prevAnswer, reason: $('prevReason').value, locked: prevLocked };
+    o.endExpanded = endExpanded; o.cleanExpanded = cleanExpanded;
+    o.handoverSent = handoverSent;
+    o.cleanState = cleanState; o.endState = endState;
+    return o;
+  }
+  function saveDraft(){
+    try {
+      localStorage.setItem(KEY, JSON.stringify(collect()));
+      var d = new Date();
+      $('saved').textContent = 'Draft saved automatically · ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    } catch (e) { /* storage unavailable – form still works */ }
+    liveSoon();
+  }
+  function loadDraft(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      draft = o; // names are applied again once the lists have loaded
+      FIELDS.forEach(function(f){
+        if (o[f] == null) return;
+        if ($(f).type === 'checkbox') $(f).checked = o[f] === true; else $(f).value = o[f];
+      });
+      if (!$('machine').value) $('machine').selectedIndex = 0;
+      if (o.prevCheck) { prevAnswer = o.prevCheck.answer || ''; $('prevReason').value = o.prevCheck.reason || ''; prevLocked = !!o.prevCheck.locked; }
+      endExpanded = !!o.endExpanded; cleanExpanded = o.cleanExpanded !== false;
+      handoverSent = Array.isArray(o.handoverSent) ? o.handoverSent : [];
+      cleanState = o.cleanState || {}; endState = o.endState || {};
+      $('saved').textContent = 'Your unfinished report was restored';
+    } catch (e) {}
+  }
+  function clearDraft(){ try { localStorage.removeItem(KEY); } catch (e) {} }
+
+  var saveTimer;
+  $('form').addEventListener('input', function(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 400); });
+  $('form').addEventListener('change', saveDraft);
+  $('tasks').addEventListener('input', function(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 400); });
+
+  /* ---------- Who is working on press (names from "Persons names" tab) ---------- */
+  var draft = null;
+
+  // Grey text while "Choose name" is selected, normal text once a name is picked.
+  function tintSelects(){
+    ['person1','person2'].forEach(function(id){ $(id).classList.toggle('empty', !$(id).value); });
+  }
+  ['person1','person2'].forEach(function(id){
+    $(id).addEventListener('change', function(){ tintSelects(); setErr('crew', false); });
+  });
+  $('other').addEventListener('input', function(){ setErr('crew', false); });
+
+  function fillSelect(id, names){
+    var sel = $(id);
+    sel.innerHTML = '';
+    var ph = document.createElement('option'); ph.value = ''; ph.textContent = 'Choose name';
+    sel.appendChild(ph);
+    names.forEach(function(n){
+      var o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
+    });
+    if (draft && draft[id] && names.indexOf(draft[id]) > -1) sel.value = draft[id];
+  }
+
+  function loadNames(){
+    if (!(window.google && google.script && google.script.run)) { // opened outside Google (preview)
+      fillSelect('person1', []); fillSelect('person2', []); tintSelects(); return;
+    }
+    google.script.run
+      .withSuccessHandler(function(res){
+        fillSelect('person1', res.person1 || []);
+        fillSelect('person2', res.person2 || []);
+        tintSelects();
+        formatList = res.formats || [];
+        renderFormats(getFormatRows());
+        cleaningLists = res.cleaning || {};
+        renderTasks();
+      })
+      .withFailureHandler(function(){
+        fillSelect('person1', []); fillSelect('person2', []); tintSelects();
+        toast('Could not load the name, format and task lists – please refresh the page.');
+        $('cleanList').innerHTML = '<p class="sub">Could not load the cleaning tasks. <button type="button" class="linkbtn" id="tasksRetry">Try again</button></p>';
+        $('tasksRetry').onclick = function(){ $('cleanList').innerHTML = '<p class="sub">Loading tasks…</p>'; loadNames(); };
+      })
+      .getLists();
+  }
+
+  /* ---------- Inputs ---------- */
+  // Numbers: digits only
+
+  /* ---------- Format change rows (formats from "Formats" tab) ---------- */
+  var formatList = [], MAX_FORMAT_ROWS = 10;
+  var ICON_PLUS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  var ICON_X = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
+  function opt(v, t){ var o = document.createElement('option'); o.value = v; o.textContent = t; return o; }
+  function formatSelect(val, label, cls){
+    var sel = document.createElement('select');
+    sel.className = cls;
+    sel.setAttribute('aria-label', label);
+    sel.appendChild(opt('', 'Choose format'));
+    formatList.forEach(function(f){ sel.appendChild(opt(f, f)); });
+    if (val && formatList.indexOf(val) === -1) sel.appendChild(opt(val, val)); // keep a restored value
+    sel.value = val || '';
+    sel.classList.toggle('empty', !sel.value);
+    sel.addEventListener('change', function(){
+      sel.classList.toggle('empty', !sel.value);
+      var row = sel.parentNode, both = row.querySelectorAll('select');
+      if (both[0].value && both[1].value && row.dataset.reminded !== '1') { row.dataset.reminded = '1'; remind(); }
+      sel.parentNode.classList.remove('bad');
+      if (!document.querySelector('.fmt-row.bad')) setErr('formats', false);
+    });
+    return sel;
+  }
+  function getFormatRows(){
+    return Array.prototype.map.call(document.querySelectorAll('.fmt-row'), function(r){
+      var s = r.querySelectorAll('select'); return [s[0].value, s[1].value];
+    });
+  }
+  function renderFormats(rows){
+    rows = (rows && rows.length) ? rows : [['', '']];
+    var box = $('fmtRows'); box.innerHTML = '';
+    rows.forEach(function(p, i){
+      var row = document.createElement('div'); row.className = 'fmt-row';
+      row.appendChild(formatSelect(p[0], 'Format change ' + (i + 1) + ' – from', 'from'));
+      var arrow = document.createElement('span'); arrow.className = 'fmt-arrow'; arrow.textContent = '→';
+      row.appendChild(arrow);
+      row.appendChild(formatSelect(p[1], 'Format change ' + (i + 1) + ' – to', 'to'));
+      var b = document.createElement('button'); b.type = 'button';
+      if (i === rows.length - 1) {
+        b.className = 'fmt-btn add'; b.innerHTML = ICON_PLUS; b.setAttribute('aria-label', 'Add another format change');
+        b.disabled = rows.length >= MAX_FORMAT_ROWS;
+        b.addEventListener('click', function(){
+          var cur = getFormatRows(); cur.push(['', '']); renderFormats(cur);
+          var all = document.querySelectorAll('.fmt-row'); all[all.length - 1].querySelector('select').focus();
+          saveDraft();
+        });
+      } else {
+        b.className = 'fmt-btn'; b.innerHTML = ICON_X; b.setAttribute('aria-label', 'Remove format change ' + (i + 1));
+        b.addEventListener('click', function(){
+          var cur = getFormatRows(); cur.splice(i, 1); renderFormats(cur); setErr('formats', false); saveDraft();
+        });
+      }
+      row.appendChild(b);
+      box.appendChild(row);
+    });
+  }
+
+  /* ---------- MO rows: number + optional printing problem ---------- */
+  var MAX_MO_ROWS = 30;
+  var ICON_WARN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
+
+  // Committed MOs become small tags; the entry line is always ready for the next one.
+  var moList = [], moSel = -1, entrySentAt = '';
+  $('moAdd').innerHTML = ICON_PLUS;
+  $('moEntryProbBtn').querySelector('.ic').outerHTML = ICON_WARN;
+
+  function getMoRows(){
+    var list = moList.map(function(m){ return { mo: m.mo, sw: m.sw, problem: m.problem, sentAt: m.sentAt }; });
+    var e = $('moEntry').value.trim(), ep = $('moEntryProblem').value.trim(), es = $('moEntrySw').value.trim();
+    if (e || ep || es) list.push({ mo: e, sw: es, problem: ep, sentAt: entrySentAt, pending: true }); // typed but not added yet – still counts
+    return list;
+  }
+  function renderMos(rows){                 // used for draft restore and reset
+    moList = []; moSel = -1;
+    $('moEntry').value = ''; $('moEntryProblem').value = ''; $('moEntrySw').value = ''; entrySentAt = '';
+    (rows || []).forEach(function(r){
+      if (r.pending) {
+        $('moEntry').value = r.mo || ''; $('moEntryProblem').value = r.problem || '';
+        $('moEntrySw').value = r.sw || ''; entrySentAt = r.sentAt || '';
+      }
+      else if ((r.mo || '').trim()) moList.push({ mo: r.mo.trim(), sw: (r.sw || '').trim(), problem: (r.problem || '').trim(), sentAt: r.sentAt || '' });
+    });
+    setEntryProblem(!!($('moEntryProblem').value.trim() || $('moEntrySw').value.trim()));
+    paintSend('entry', entrySentAt);
+    updateAddLock();
+    drawTags();
+  }
+  function setEntryProblem(open){
+    $('moEntryProbBox').hidden = !open;
+    $('moEntryProbBtn').classList.toggle('on', open);
+    $('moEntryProbBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  function clearMoErr(){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-f="mosList"] .bad'), function(x){ x.classList.remove('bad'); });
+    setErr('mosList', false);
+  }
+  function drawTags(){
+    var box = $('moTags'); box.innerHTML = '';
+    moList.forEach(function(m, i){
+      var t = document.createElement('button'); t.type = 'button';
+      t.className = 'mo-tag' + (m.problem ? ' warn' : '') + (i === moSel ? ' sel' : '');
+      t.title = m.mo + (m.sw ? ' (' + m.sw + ')' : '') + (m.problem ? ' – ' + m.problem : '') + (m.sentAt ? ' · e-mailed ' + m.sentAt : '');
+      t.innerHTML = (m.problem ? ICON_WARN : '') + '<span></span>';
+      t.querySelector('span').textContent = m.mo;
+      t.addEventListener('click', function(){ selectMo(moSel === i ? -1 : i); });
+      box.appendChild(t);
+    });
+    $('moCount').textContent = moList.length ? String(moList.length) : '';
+    $('moAdd').disabled = moList.length >= MAX_MO_ROWS;
+    var ed = $('moEdit'); ed.hidden = moSel < 0;
+    if (moSel >= 0) {
+      $('moEditNo').value = moList[moSel].mo; $('moEditProblem').value = moList[moSel].problem;
+      $('moEditSw').value = moList[moSel].sw || ''; paintSend('edit', moList[moSel].sentAt);
+    }
+  }
+  function selectMo(i){
+    if (moSel >= 0 && i !== moSel) { var gate = reportMissing('edit'); if (gate) { warnReport(gate); return; } }
+    if (i < 0 && moSel >= 0) { var g2 = reportMissing('edit'); if (g2) { warnReport(g2); return; } }
+    closeEdit(); moSel = i; drawTags();
+  }
+  function closeEdit(){                       // apply edits from the open tag
+    if (moSel < 0) return;
+    var mo = $('moEditNo').value.trim(), pr = $('moEditProblem').value.trim(), sw = $('moEditSw').value.trim();
+    if (!mo && !pr && !sw) moList.splice(moSel, 1);
+    else if (!mo) { $('moEditNo').classList.add('bad'); setErr('mosList', true); return; }
+    else moList[moSel] = { mo: mo, sw: sw, problem: pr, sentAt: moList[moSel].sentAt || '' };
+    moSel = -1; clearMoErr();
+  }
+  /*
+   * A printing problem must be reported before moving on: when "Problem printing?" is open
+   * (or something is written in it), + / Enter / Done / Submit wait until the MO number,
+   * SW number and description are filled in AND "Send to managers" was pressed.
+   */
+  function reportMissing(which){
+    var isEntry = which === 'entry';
+    var box = isEntry ? $('moEntryProbBox') : $('moEdit');
+    var mo = $(isEntry ? 'moEntry' : 'moEditNo'), sw = $(isEntry ? 'moEntrySw' : 'moEditSw');
+    var pr = $(isEntry ? 'moEntryProblem' : 'moEditProblem'), send = $(isEntry ? 'moEntrySend' : 'moEditSend');
+    var sentAt = isEntry ? entrySentAt : (moSel >= 0 && moList[moSel] ? moList[moSel].sentAt : '');
+    var active = isEntry ? (!box.hidden || pr.value.trim() || sw.value.trim())
+                         : (moSel >= 0 && (pr.value.trim() || sw.value.trim()));
+    if (!active || sentAt) return null;
+    var miss = [];
+    if (!mo.value.trim()) miss.push({ el: mo, txt: 'the MO number' });
+    if (!sw.value.trim()) miss.push({ el: sw, txt: 'the SW number' });
+    if (!pr.value.trim()) miss.push({ el: pr, txt: 'what happened' });
+    miss.push({ el: send, send: true });
+    return miss;
+  }
+  function warnReport(miss){
+    Array.prototype.forEach.call(document.querySelectorAll('.need'), function(x){ x.classList.remove('need'); });
+    miss.forEach(function(m){ m.el.classList.add('need'); });
+    setTimeout(function(){ miss.forEach(function(m){ m.el.classList.remove('need'); }); }, 3000);
+    var words = miss.filter(function(m){ return !m.send; }).map(function(m){ return m.txt; });
+    var list = words.length > 1 ? words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1] : words[0];
+    toast('Printing problem not reported yet – ' + (list ? 'add ' + list + ', then ' : '') +
+          'press “Send to managers” before moving on.', 'warn');
+    var first = miss[0].el; if (first.tagName !== 'BUTTON') first.focus();
+  }
+  function updateAddLock(){
+    $('moAdd').classList.toggle('locked', !!reportMissing('entry'));
+  }
+  ['moEntry','moEntrySw','moEntryProblem'].forEach(function(id){ $(id).addEventListener('input', updateAddLock); });
+
+  function addMo(){
+    var gate = reportMissing('entry');
+    if (gate) { warnReport(gate); return; }
+    var mo = $('moEntry').value.trim(), pr = $('moEntryProblem').value.trim(), sw = $('moEntrySw').value.trim();
+    if (!mo) {
+      if (pr || sw) { $('moEntry').classList.add('bad'); setErr('mosList', true); }
+      $('moEntry').focus(); return;
+    }
+    if (moList.length >= MAX_MO_ROWS) { toast('Maximum ' + MAX_MO_ROWS + ' MOs per report.'); return; }
+    var dup = moList.findIndex(function(m){ return m.mo.toLowerCase() === mo.toLowerCase(); });
+    if (dup > -1) {
+      if (pr) moList[dup].problem = pr;
+      if (sw) moList[dup].sw = sw;
+      if (entrySentAt) moList[dup].sentAt = entrySentAt;
+      toast(mo + ' is already in the list.');
+    } else {
+      moList.push({ mo: mo, sw: sw, problem: pr, sentAt: entrySentAt });
+      remind();
+    }
+    closeEdit(); moSel = -1;
+    $('moEntry').value = ''; $('moEntryProblem').value = ''; $('moEntrySw').value = '';
+    entrySentAt = ''; paintSend('entry', ''); setEntryProblem(false); updateAddLock();
+    clearMoErr(); drawTags(); $('moEntry').focus(); saveDraft();
+  }
+  $('moAdd').addEventListener('click', addMo);
+  $('moEntry').addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); addMo(); } });
+  $('moEntry').addEventListener('input', clearMoErr);
+  $('moEntryProbBtn').addEventListener('click', function(){
+    var open = $('moEntryProbBox').hidden;
+    // Closing is only possible while nothing is written yet (or it was already sent).
+    if (!open && ($('moEntryProblem').value.trim() || $('moEntrySw').value.trim()) && !entrySentAt) {
+      warnReport(reportMissing('entry')); return;
+    }
+    setEntryProblem(open);
+    if (open) $('moEntrySw').focus();
+    updateAddLock();
+  });
+  $('moEditNo').addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); $('moEditDone').click(); } });
+  $('moEditNo').addEventListener('input', clearMoErr);
+  $('moEditDone').addEventListener('click', function(){
+    var gate = reportMissing('edit');
+    if (gate) { warnReport(gate); return; }
+    closeEdit(); drawTags(); saveDraft();
+  });
+  /* "Send to managers": e-mails this MO's problem right away (managers = column D of "Persons names") */
+  function paintSend(which, sentAt){
+    var btn = $(which === 'entry' ? 'moEntrySend' : 'moEditSend');
+    var info = $(which === 'entry' ? 'moEntrySent' : 'moEditSent');
+    btn.disabled = false;
+    btn.classList.toggle('again', !!sentAt);
+    btn.querySelector('span').textContent = sentAt ? 'Send again' : 'Send to managers';
+    info.textContent = sentAt ? '✓ Sent to managers ' + sentAt : '';
+  }
+  function sendProblem(which){
+    var isEntry = which === 'entry';
+    var moEl = $(isEntry ? 'moEntry' : 'moEditNo'), prEl = $(isEntry ? 'moEntryProblem' : 'moEditProblem');
+    var mo = moEl.value.trim(), pr = prEl.value.trim(), sw = $(isEntry ? 'moEntrySw' : 'moEditSw').value.trim();
+    var d = collect(), idx = moSel;
+    var swEl = $(isEntry ? 'moEntrySw' : 'moEditSw');
+    if (!mo) { moEl.classList.add('bad'); moEl.focus(); toast('Enter the MO number first.'); return; }
+    if (!sw) { swEl.focus(); toast('Enter the SW number first.', 'warn'); return; }
+    if (!pr) { prEl.focus(); toast('Describe the problem first.'); return; }
+    if (!d.person1 && !d.person2 && !d.other.trim()) { setErr('crew', true); $('person1').focus(); toast('Choose who is working on the press first.'); return; }
+    if (!d.machine) { setErr('machine', true); $('machine').focus(); toast('Choose the machine first.'); return; }
+    if (!hasRun) { toast('Sending only works in the live form.'); return; }
+    var btn = $(isEntry ? 'moEntrySend' : 'moEditSend');
+    btn.disabled = true; btn.querySelector('span').textContent = 'Sending…';
+    google.script.run
+      .withSuccessHandler(function(res){
+        if (isEntry) { entrySentAt = res.time; paintSend('entry', res.time); updateAddLock(); }
+        else {
+          // keep exactly what was sent (the editor is redrawn below)
+          if (moList[idx]) moList[idx] = { mo: mo, sw: sw, problem: pr, sentAt: res.time };
+          if (moSel === idx) paintSend('edit', res.time);
+          drawTags();
+        }
+        toast('Sent to ' + res.count + (res.count === 1 ? ' manager' : ' managers') + ' ✓', true);
+        saveDraft();
+      })
+      .withFailureHandler(function(err){
+        paintSend(which, isEntry ? entrySentAt : (moList[idx] && moList[idx].sentAt));
+        toast('Not sent: ' + (err && err.message ? err.message : 'please try again.'));
+      })
+      .sendProblemEmail({ mo: mo, sw: sw, problem: pr, machine: d.machine,
+                          person1: d.person1, person2: d.person2, other: d.other });
+  }
+  $('moEntrySend').addEventListener('click', function(){ sendProblem('entry'); });
+  $('moEditSend').addEventListener('click', function(){ sendProblem('edit'); });
+  $('moEntrySw').addEventListener('keydown', function(e){ if (e.key === 'Enter') e.preventDefault(); });
+  $('moEditSw').addEventListener('keydown', function(e){ if (e.key === 'Enter') e.preventDefault(); });
+
+  $('moEditRemove').addEventListener('click', function(){
+    if (moSel >= 0) moList.splice(moSel, 1);
+    moSel = -1; clearMoErr(); drawTags(); saveDraft();
+  });
+
+  /* ---------- Shift of this form ----------
+   * The form keeps the shift it was started in. It only moves on (Early → Late → Night → Early)
+   * when a submitted report is cleared for the next crew. The clock is only used to start the
+   * very first form, to warn when the shift time is over and to open the end-of-shift tasks.
+   */
+  var SHIFT_HOURS = { Early: '06:00 – 14:00', Late: '14:00 – 22:00', Night: '22:00 – 06:00' };
+  var SHIFT_ORDER = ['Early', 'Late', 'Night'], SHIFT_START = { Early: 6, Late: 14, Night: 22 };
+  var SHIFT_KEY = 'nomoq_eos_shift_v1';
+  var currentShift = 'Early';          // by the clock (Shift Overview "NOW")
+  var formShift = null;                // { shift, day: 'YYYY-MM-DD' (production day), submitted }
+  function shiftOf(d){ var h = d.getHours(); return h >= 6 && h < 14 ? 'Early' : h >= 14 && h < 22 ? 'Late' : 'Night'; }
+  function ymd(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function clockShift(){
+    var d = new Date(), day = new Date(d); if (d.getHours() < 6) day.setDate(day.getDate() - 1);
+    return { shift: shiftOf(d), day: ymd(day) };
+  }
+  function shiftIdx(fs){
+    var p = fs.day.split('-').map(Number);
+    return Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5) * 3 + SHIFT_ORDER.indexOf(fs.shift);
+  }
+  function fromIdx(i){
+    var d = new Date(Math.floor(i / 3) * 864e5);
+    return { shift: SHIFT_ORDER[((i % 3) + 3) % 3],
+             day: d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) };
+  }
+  function shiftStartAt(fs){ var p = fs.day.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], SHIFT_START[fs.shift]); }
+  function shiftEndAt(fs){ var p = fs.day.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], SHIFT_START[fs.shift] + 8); }
+  function saveShift(){ try { localStorage.setItem(SHIFT_KEY, JSON.stringify(formShift)); } catch (e) {} }
+  function loadShift(){
+    var st = null, now = clockShift();
+    try { st = JSON.parse(localStorage.getItem(SHIFT_KEY) || 'null'); } catch (e) {}
+    var ok = st && SHIFT_ORDER.indexOf(st.shift) > -1 && /^\d{4}-\d{2}-\d{2}$/.test(st.day || '');
+    // Keep the stored shift unless it is more than one shift away from the clock (form left for days).
+    if (!ok || Math.abs(shiftIdx(st) - shiftIdx(now)) > 1) st = { shift: now.shift, day: now.day, submitted: false };
+    formShift = st; saveShift();
+  }
+  // After a submitted report is cleared: prepare the form for the next shift.
+  function advanceShift(){
+    var next = fromIdx(shiftIdx(formShift) + 1), now = clockShift();
+    if (shiftIdx(next) < shiftIdx(now)) next = now;            // report sent very late → jump to now
+    switchShift(next);
+  }
+  // Point the form at another shift (fresh tasks for that shift).
+  function switchShift(fs){
+    formShift = { shift: fs.shift, day: fs.day, submitted: false };
+    saveShift();
+    prevAnswer = ''; prevLocked = false; cleanState = {}; endState = {}; endExpanded = false; cleanExpanded = true; keptHo = [];
+    handoverSent = []; renderHoSent();
+    saveKept(); renderTasks(); renderShift(); loadHandovers();
+  }
+  // Nothing typed, ticked or chosen yet?
+  function isPristine(){
+    var d = collect();
+    var dr = draft || {};                       // names come back from the draft once the lists load
+    return !d.person1 && !d.person2 && !dr.person1 && !dr.person2 && !String(d.other || '').trim() && !d.machine && !d.samples && !d.colourMatch &&
+      !(parseInt(d.downtime, 10) > 0) && !String(d.reason || '').trim() && !String(d.handover || '').trim() &&
+      !d.formats.some(function(r){ return r[0] || r[1]; }) && !d.mos.length && !prevAnswer &&
+      !Object.keys(cleanState).length && !Object.keys(endState).length && !photos.length && !phonePhotos.length &&
+      !handoverSent.length;
+  }
+  // Report sent before the next shift starts → "waiting" screen until then.
+  function isWaiting(){ return Date.now() < shiftStartAt(formShift).getTime(); }
+  function scheduleFor(fs){
+    if (fs.shift === 'Late')  return { key: 'late',  name: 'Late shift cleaning schedule' };
+    if (fs.shift === 'Night') return { key: 'night', name: 'Night shift cleaning schedule' };
+    var p = fs.day.split('-').map(Number), d = new Date(p[0], p[1] - 1, p[2]);
+    if (d.getDay() === 1) return { key: 'monday', name: 'Early shift weekly cleaning schedule' };
+    var inWeek = new Date(p[0], p[1] - 1, p[2] + 7);
+    if (d.getDay() === 5 && inWeek.getMonth() !== d.getMonth()) return { key: 'lastFriday', name: 'Last Friday of the month cleaning schedule' };
+    return { key: 'early', name: 'Early shift cleaning schedule' };
+  }
+  function endTasksOpen(){ return Date.now() >= shiftEndAt(formShift).getTime() - 30 * 60000; }
+
+  /* ---------- Live status for the managers' "On the press now" ----------
+   * Every minute (and ~10 s after a change) this PC sends a short summary of the open form.
+   * Only counts and ticks – never the previous-shift answer itself.
+   */
+  var PC_KEY = 'nomoq_eos_pc_v1', PC_ID = '';
+  try { PC_ID = localStorage.getItem(PC_KEY) || ''; } catch (e) {}
+  if (!/^[a-z0-9]{8,32}$/.test(PC_ID)) {
+    PC_ID = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g, '').slice(0, 16);
+    try { localStorage.setItem(PC_KEY, PC_ID); } catch (e) {}
+  }
+  function answeredCount(tasks, state){
+    return tasks.filter(function(t){ var st = state[t]; return st && (st.status === 'done' || (st.status === 'notdone' && (st.reason || '').trim())); }).length;
+  }
+  function liveSummary(){
+    var d = collect(), rows = getMoRows().filter(function(m){ return (m.mo || '').trim(); });
+    var cl = currentCleaning(), end = (cleaningLists && cleaningLists.end) || [];
+    var waiting = isWaiting(), st = shiftStartAt(formShift);
+    return {
+      pc: PC_ID, machine: d.machine, shift: formShift.shift,
+      state: waiting ? 'waiting' : (isPristine() ? 'empty' : 'filling'),
+      sentShift: waiting ? fromIdx(shiftIdx(formShift) - 1).shift : '',
+      startsAt: waiting ? pad(st.getHours()) + ':' + pad(st.getMinutes()) : '',
+      overdue: !waiting && Date.now() >= shiftEndAt(formShift).getTime(),
+      person1: d.person1, person2: d.person2, other: d.other,
+      mos: rows.length,
+      moProblems: rows.filter(function(m){ return (m.problem || '').trim(); }).length,
+      problemsSent: rows.filter(function(m){ return (m.problem || '').trim() && m.sentAt; }).length,
+      formats: d.formats.filter(function(r){ return r[0] && r[1]; }).length,
+      downtime: parseInt(d.downtime, 10) || 0, downtimeReason: !!String(d.reason || '').trim(),
+      prev: prevAnswer === 'yes' || (prevAnswer === 'no' && !!$('prevReason').value.trim()),
+      cleanDone: answeredCount(cl.tasks, cleanState), cleanTotal: cl.tasks.length,
+      endDone: answeredCount(end, endState), endTotal: end.length, endOpen: endTasksOpen(),
+      handovers: handoverSent.length, photos: photos.length + phonePhotos.length,
+      samples: !!d.samples, colourMatch: !!d.colourMatch
+    };
+  }
+  var liveTimer = null;
+  function sendLive(){
+    clearTimeout(liveTimer); liveTimer = null;
+    if (!hasRun || !formShift) return;
+    try { google.script.run.withFailureHandler(function(){}).reportLive(liveSummary()); } catch (e) {}
+  }
+  function liveSoon(){ if (!liveTimer) liveTimer = setTimeout(sendLive, 10000); }
+
+  /* ---------- Important messages (from managers / prepress) ---------- */
+  var important = [];
+  var IMP_COLOURS = { red: '#B91C1C', orange: '#C2410C', blue: '#1D4ED8', green: '#15803D', dark: '#0F172A' };
+  function renderImportant(){
+    var now = Date.now(), m = $('machine').value;
+    var list = important.filter(function(x){
+      return new Date(x.start).getTime() <= now && new Date(x.end).getTime() > now &&
+             (!m || x.line === 'Both lines' || x.line === m);
+    });
+    var sec = $('important'), box = $('impList');
+    sec.hidden = !list.length;
+    var key = JSON.stringify(list.map(function(x){ return [x.id, x.text, x.colour, x.bold, x.tag, x.end]; })) + m;
+    if (box.dataset.key === key) return;            // nothing changed – don't redraw
+    box.dataset.key = key; box.innerHTML = '';
+    box.classList.toggle('two', list.length > 1);
+    $('impN').textContent = list.length > 1 ? list.length + ' messages' : '';
+    list.forEach(function(x){
+      var el = document.createElement('div'); el.className = 'imp-item';
+      var chip = document.createElement('span'); chip.className = 'imp-chip'; chip.textContent = x.line === 'Both lines' ? 'All lines' : x.line;
+      var body = document.createElement('div'); body.style.flex = '1'; body.style.minWidth = '0';
+      var t = document.createElement('div'); t.className = 'imp-text'; t.textContent = x.text;
+      t.style.color = IMP_COLOURS[x.colour] || IMP_COLOURS.red; t.style.fontWeight = x.bold ? '700' : '500';
+      body.appendChild(t);
+      var meta = document.createElement('div'); meta.className = 'imp-meta';
+      if (x.tag) { var g = document.createElement('span'); g.className = 'imp-tag'; g.textContent = x.tag; meta.appendChild(g); }
+      if (x.by) { var b = document.createElement('span'); b.textContent = 'from ' + x.by; meta.appendChild(b); }
+      if (meta.childNodes.length) body.appendChild(meta);
+      el.appendChild(chip); el.appendChild(body); box.appendChild(el);
+    });
+  }
+  function loadImportant(){
+    if (!hasRun) { renderImportant(); return; }
+    try {
+      google.script.run.withSuccessHandler(function(res){ important = res || []; renderImportant(); })
+        .withFailureHandler(function(){}).getImportantMessages();
+    } catch (e) {}
+  }
+  $('machine').addEventListener('change', renderImportant);
+
+  function renderShift(){
+    renderImportant();                               // messages start / end with the clock
+    var now = clockShift();
+    var s = now.shift;
+    // Report sent and "Keep data" chosen: once the shift is over, clear and move on by itself.
+    if (formShift.submitted && Date.now() >= shiftEndAt(formShift).getTime()) { clearForm(); return; }
+    // Never wait for a shift further ahead than the next one.
+    if (shiftIdx(formShift) > shiftIdx(now) + 1) { switchShift(now); return; }
+    // Nobody worked this shift (form still empty) → follow the clock to the shift that is on now.
+    if (!formShift.submitted && shiftIdx(formShift) < shiftIdx(now) && isPristine()) { switchShift(now); return; }
+    var waiting = isWaiting();
+    document.body.classList.toggle('waiting-mode', waiting);
+    $('waiting').hidden = !waiting;
+    if (waiting) {
+      var before = fromIdx(shiftIdx(formShift) - 1).shift, st = shiftStartAt(formShift);
+      var hhmm = pad(st.getHours()) + ':' + pad(st.getMinutes());
+      var mins = Math.max(1, Math.ceil((st.getTime() - Date.now()) / 60000));
+      var inTxt = mins >= 60 ? Math.floor(mins / 60) + ' h ' + (mins % 60 ? mins % 60 + ' min' : '') : mins + ' min';
+      $('wTitle').textContent = before + ' shift report submitted';
+      $('wNext').textContent = formShift.shift + ' shift starts at ' + hhmm;
+      $('wSub').textContent = 'The ' + formShift.shift + ' shift form opens here automatically at ' + hhmm + ' (in ' + inTxt.trim() + ').';
+      $('wAgain').textContent = 'Submit the ' + before + ' shift report again';
+      $('wClock').textContent = 'Now ' + $('clockTime').textContent.slice(0, 5);
+    }
+    if (s !== currentShift || !$('shiftBadge').dataset.ready) {
+      currentShift = s; $('shiftBadge').dataset.ready = '1';
+      renderOverview(lastOverview);
+    }
+    var fs = formShift.shift, over = Date.now() >= shiftEndAt(formShift).getTime();
+    $('shiftBadge').dataset.shift = fs;
+    $('shiftName').textContent = fs + ' shift';
+    $('shiftHours').textContent = waiting ? 'Starts at ' + pad(shiftStartAt(formShift).getHours()) + ':00'
+                                : over ? 'Time over – submit report' : SHIFT_HOURS[fs];
+    $('shiftHours').classList.toggle('late', over);
+    var od = $('overdue');
+    if (over) {
+      var next = fromIdx(shiftIdx(formShift) + 1).shift;
+      od.hidden = false;
+      od.innerHTML = '<b>' + fs + ' shift ended at ' + pad(shiftEndAt(formShift).getHours()) + ':00</b>' +
+        'Submit this report – the form then gets ready for the ' + next + ' shift.<br>' +
+        '<button type="button" id="startNext">Start ' + next + ' shift without submitting</button>';
+      $('startNext').onclick = function(){
+        openModal({ tone: 'warn', icon: ICON_RESET, title: 'Start the ' + next + ' shift?',
+          text: 'The ' + fs + ' shift report has not been submitted. Everything typed in it will be cleared.',
+          cancel: 'Cancel', ok: 'Start ' + next + ' shift', onOk: function(){ formShift.submitted = true; clearForm(); } });
+      };
+    } else od.hidden = true;
+    if (endTasksOpen() !== !!$('endPanel').dataset.open) renderEnd();
+  }
+
+  $('wAgain').addEventListener('click', function(){
+    var before = fromIdx(shiftIdx(formShift) - 1);
+    openModal({ tone: 'warn', icon: ICON_RESET, title: 'Open the ' + before.shift + ' shift form again?',
+      text: 'Use this if the report was sent by mistake or something was missing. The form starts empty – fill in all fields and submit it again.',
+      cancel: 'Cancel', ok: 'Open ' + before.shift + ' shift form',
+      onOk: function(){ switchShift(before); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+  });
+
+  /* ---------- Previous shift check, cleaning schedule, end-of-shift tasks ---------- */
+  var cleaningLists = null, prevAnswer = '', cleanState = {}, endState = {};
+  var ICON_TICK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+  // Once answered, the choice is hidden ("Answer saved") so nobody at the PC can see it.
+  var prevLocked = false;
+  function paintPrev(){
+    $('prevAsk').hidden = prevLocked; $('prevDone').hidden = !prevLocked;
+    $('prevYes').className = prevAnswer === 'yes' ? 'on-yes' : '';
+    $('prevNo').className = prevAnswer === 'no' ? 'on-no' : '';
+    $('prevReason').hidden = prevAnswer !== 'no';
+    $('prevSaveRow').hidden = prevAnswer !== 'no';
+  }
+  function lockPrev(){
+    if (prevAnswer === 'no' && !$('prevReason').value.trim()) {
+      $('prevReason').classList.add('need'); $('prevReason').focus();
+      toast('Please write what was not done properly, then press Send.', 'warn');
+      setTimeout(function(){ $('prevReason').classList.remove('need'); }, 3000);
+      return;
+    }
+    prevLocked = true; $('prevPanel').classList.remove('attn'); paintPrev(); saveDraft();
+  }
+  $('prevYes').addEventListener('click', function(){ prevAnswer = 'yes'; lockPrev(); });
+  $('prevNo').addEventListener('click', function(){
+    prevAnswer = prevAnswer === 'no' ? '' : 'no'; $('prevPanel').classList.remove('attn'); paintPrev();
+    if (prevAnswer === 'no') $('prevReason').focus();
+    saveDraft();
+  });
+  $('prevSave').addEventListener('click', lockPrev);
+  $('prevAgain').addEventListener('click', function(){
+    prevAnswer = ''; prevLocked = false; $('prevReason').value = ''; paintPrev(); saveDraft();
+  });
+
+  // onAll() is called when the user answers the last open task (used to fold the list away).
+  function taskRows(box, tasks, state, progEl, onAll){
+    box.innerHTML = '';
+    if (!tasks.length) { box.innerHTML = '<p class="sub">No tasks for this schedule.</p>'; progEl.textContent = ''; return; }
+    function prog(byUser){
+      var n = tasks.filter(function(t){ var st = state[t]; return st && (st.status === 'done' || (st.status === 'notdone' && (st.reason || '').trim())); }).length;
+      var all = n === tasks.length;
+      progEl.textContent = all ? '✓ Done' : n + ' / ' + tasks.length;
+      progEl.classList.toggle('all', all);
+      if (byUser && all && onAll) setTimeout(onAll, 700);   // short pause so the last tick is seen
+      return all;
+    }
+    tasks.forEach(function(t){
+      var st = state[t] || {};
+      var row = document.createElement('div'); row.className = 'task'; row.dataset.status = st.status || '';
+      var tick = document.createElement('button'); tick.type = 'button'; tick.className = 'tick'; tick.innerHTML = ICON_TICK;
+      tick.setAttribute('aria-label', 'Done: ' + t);
+      var name = document.createElement('span'); name.className = 'tname'; name.textContent = t;
+      var nd = document.createElement('button'); nd.type = 'button'; nd.className = 'nd'; nd.textContent = 'Not done';
+      var why = document.createElement('textarea'); why.className = 'why'; why.maxLength = 500;
+      why.placeholder = 'Why wasn\'t it done?'; why.value = st.reason || ''; why.hidden = st.status !== 'notdone';
+      function set(status){
+        state[t] = status ? { status: status, reason: why.value } : {};
+        if (!status) delete state[t];
+        row.dataset.status = status || ''; why.hidden = status !== 'notdone';
+        row.classList.remove('missing');
+        tick.setAttribute('aria-pressed', status === 'done' ? 'true' : 'false');
+        if (status === 'notdone') why.focus();
+        prog(status === 'done'); saveDraft();
+      }
+      tick.addEventListener('click', function(){ set(row.dataset.status === 'done' ? '' : 'done'); });
+      name.addEventListener('click', function(){ set(row.dataset.status === 'done' ? '' : 'done'); });
+      nd.addEventListener('click', function(){ set(row.dataset.status === 'notdone' ? '' : 'notdone'); });
+      why.addEventListener('input', function(){ if (state[t]) state[t].reason = why.value; row.classList.remove('missing'); prog(); });
+      why.addEventListener('blur', function(){ if (why.value.trim()) prog(true); });   // fold only once they finish typing
+      row.appendChild(tick); row.appendChild(name); row.appendChild(nd); row.appendChild(why);
+      box.appendChild(row);
+    });
+    prog();
+  }
+  function currentCleaning(){
+    var sc = scheduleFor(formShift);
+    return { name: sc.name, tasks: (cleaningLists && cleaningLists[sc.key]) || [] };
+  }
+  function renderTasks(){
+    paintPrev();
+    var c = currentCleaning();
+    $('cleanTitle').textContent = c.name;
+    if (cleaningLists) taskRows($('cleanList'), c.tasks, cleanState, $('cleanProg'), function(){
+      if (!allAnswered(c.tasks, cleanState)) return;
+      cleanExpanded = false; paintClean(); saveDraft();
+    });
+    paintClean();
+    renderEnd();
+  }
+  var endExpanded = false, cleanExpanded = true;
+  function allAnswered(tasks, state){
+    return tasks.length > 0 && tasks.every(function(t){ var st = state[t]; return st && (st.status === 'done' || (st.status === 'notdone' && (st.reason || '').trim())); });
+  }
+  function paintClean(){
+    var tasks = currentCleaning().tasks, all = allAnswered(tasks, cleanState);
+    var n = tasks.filter(function(t){ var st = cleanState[t]; return st && (st.status === 'done' || (st.status === 'notdone' && (st.reason || '').trim())); }).length;
+    $('cleanList').hidden = !cleanExpanded;
+    $('cleanChev').classList.toggle('up', cleanExpanded);
+    $('cleanToggle').setAttribute('aria-expanded', cleanExpanded ? 'true' : 'false');
+    $('cleanNote').hidden = cleanExpanded || !cleaningLists;
+    $('cleanNote').textContent = all ? 'All tasks answered – tap to open' : n + ' of ' + tasks.length + ' answered – tap to open';
+    $('cleanNote').classList.toggle('done', all);
+  }
+  $('cleanToggle').addEventListener('click', function(){ cleanExpanded = !cleanExpanded; paintClean(); saveDraft(); });
+  $('cleanNote').addEventListener('click', function(){ cleanExpanded = true; paintClean(); saveDraft(); });
+  function renderEnd(){
+    var open = endTasksOpen();
+    $('endPanel').dataset.open = open ? '1' : '';
+    // At 13:30 / 21:30 / 05:30 the list opens by itself (once per shift).
+    if (open && !formShift.endAuto) {
+      formShift.endAuto = true; saveShift();
+      if (!allAnswered((cleaningLists && cleaningLists.end) || [], endState)) endExpanded = true;
+    }
+    var at = new Date(shiftEndAt(formShift).getTime() - 30 * 60000), hhmm = pad(at.getHours()) + ':' + pad(at.getMinutes());
+    $('endNote').textContent = open ? 'Needed before you submit and leave' : 'Needed before you submit · opens by itself at ' + hhmm;
+    $('endNote').classList.toggle('now', open);
+    $('endList').hidden = !endExpanded;
+    $('endChev').classList.toggle('up', endExpanded);
+    $('endToggle').setAttribute('aria-expanded', endExpanded ? 'true' : 'false');
+    if (cleaningLists) taskRows($('endList'), cleaningLists.end || [], endState, $('endProg'), function(){
+      if (!allAnswered(cleaningLists.end || [], endState)) return;
+      endExpanded = false; renderEnd(); saveDraft();
+    });
+  }
+  $('endToggle').addEventListener('click', function(){ endExpanded = !endExpanded; renderEnd(); saveDraft(); });
+
+  // Submit check: every visible task answered (done, or not done with a reason).
+  function tasksMissing(){
+    var miss = [];
+    if (!prevAnswer || (prevAnswer === 'no' && !$('prevReason').value.trim())) {
+      $('prevPanel').classList.add('attn'); miss.push({ el: prevAnswer ? $('prevReason') : $('prevYes'), what: 'the previous shift question' });
+    }
+    var lists = [['cleanList', 'cleaning task', cleanState]];
+    lists.push(['endList', 'end-of-shift task', endState]);   // always needed before submitting, like the cleaning schedule
+    lists.forEach(function(x){
+      Array.prototype.forEach.call($(x[0]).querySelectorAll('.task'), function(r){
+        var bad = !r.dataset.status || (r.dataset.status === 'notdone' && !r.querySelector('.why').value.trim());
+        r.classList.toggle('missing', bad);
+        if (bad) miss.push({ el: r.dataset.status ? r.querySelector('.why') : r.querySelector('.tick'), what: x[1],
+                             task: r.querySelector('.tname').textContent, state: x[2], list: x[0] });
+      });
+    });
+    return miss;
+  }
+  function taskPayload(list, tasks, state){
+    return tasks.map(function(t){ var st = state[t] || {}; return { task: t, status: st.status || '', reason: st.reason || '' }; });
+  }
+
+  // Submit with unmarked tasks → "Did you do your cleaning?"
+  //   Yes → back to the list to tick them.   No → why not? → marked "Not done" with that reason, then submit.
+  var ICON_BROOM = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4 20 10"/><path d="M17 7 9.5 14.5"/><path d="M9.5 14.5 4 20h6l3-3-3.5-2.5z"/></svg>';
+  function askCleaning(tm){
+    var n = tm.length, endOnly = tm.every(function(m){ return m.list === 'endList'; });
+    var nc = tm.filter(function(m){ return m.list === 'cleanList'; }).length, ne = n - nc;
+    var parts = [];
+    if (nc) parts.push(nc + (nc === 1 ? ' cleaning task' : ' cleaning tasks'));
+    if (ne) parts.push(ne + (ne === 1 ? ' end-of-shift task' : ' end-of-shift tasks'));
+    openModal({
+      tone: 'amber', icon: ICON_BROOM,
+      title: endOnly ? 'Did you do the end-of-shift tasks?' : 'Did you do your cleaning?',
+      text: parts.join(' and ') + (n === 1 ? ' is' : ' are') + ' not marked yet. If you did them, please mark the tasks as done.',
+      cancel: 'No', ok: 'Yes',
+      onOk: function(){
+        if (tm.some(function(m){ return m.list === 'endList'; }) && !endExpanded) { endExpanded = true; renderEnd(); tasksMissing(); }
+        if (tm.some(function(m){ return m.list === 'cleanList'; }) && !cleanExpanded) { cleanExpanded = true; paintClean(); }
+        var el = tm[0].el; el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        toast('Please tick the tasks you did. For anything not done, press “Not done” and write why.', 'warn');
+      },
+      onCancel: function(){
+        openModal({
+          tone: 'amber', icon: ICON_BROOM, title: endOnly ? 'Why weren\'t the end-of-shift tasks done?' : 'Why wasn\'t the cleaning done?',
+          text: 'This reason is saved for the ' + n + (n === 1 ? ' task' : ' tasks') + ' not marked.',
+          input: true, placeholder: 'e.g. Press breakdown took the whole afternoon',
+          cancel: 'Back', ok: 'Save & submit',
+          onCancel: function(){ askCleaning(tm); },
+          onOk: function(v){
+            v = String(v || '').trim();
+            if (!v) { $('mInput').classList.add('need'); $('mInput').focus(); return false; }
+            $('mInput').classList.remove('need');
+            tm.forEach(function(m){
+              var cur = m.state[m.task];
+              if (cur && cur.status === 'notdone') cur.reason = cur.reason && cur.reason.trim() ? cur.reason : v;
+              else m.state[m.task] = { status: 'notdone', reason: v };
+            });
+            renderTasks(); saveDraft();
+            setTimeout(function(){ $('submitBtn').click(); }, 0);
+          }
+        });
+      }
+    });
+  }
+
+  /* ---------- Handover to next shift: "Send to next shift" ---------- */
+  var handoverSent = [];                       // [{ text, time }] sent during this shift
+  function renderHoSent(){
+    var box = $('hoSent'); box.innerHTML = '';
+    handoverSent.forEach(function(h){
+      var d = document.createElement('div'); d.className = 'ho-sent';
+      var b = document.createElement('b'); b.textContent = '✓ Sent to next shift ' + h.time;
+      var t = document.createElement('span'); t.textContent = h.text;
+      d.appendChild(b); d.appendChild(t); box.appendChild(d);
+    });
+  }
+  $('hoSend').addEventListener('click', function(){
+    var text = $('handover').value.trim();
+    if (!text) { $('handover').classList.add('need'); $('handover').focus(); toast('Write the handover message first.', 'warn');
+      setTimeout(function(){ $('handover').classList.remove('need'); }, 2500); return; }
+    if (!hasRun) { toast('Sending only works in the live form.'); return; }
+    var btn = $('hoSend'); btn.disabled = true; btn.querySelector('span').textContent = 'Sending…';
+    var d = collect();
+    google.script.run
+      .withSuccessHandler(function(res){
+        handoverSent.push({ text: text, time: res.time });
+        $('handover').value = ''; renderHoSent(); saveDraft();
+        btn.disabled = false; btn.querySelector('span').textContent = 'Send to next shift';
+        toast('Handover sent – the next shift will see it.', 'good');
+      })
+      .withFailureHandler(function(err){
+        btn.disabled = false; btn.querySelector('span').textContent = 'Send to next shift';
+        toast('Not sent: ' + (err && err.message ? err.message : 'please try again.'));
+      })
+      .sendHandover({ message: text, shift: formShift.shift, machine: d.machine, person1: d.person1, person2: d.person2, other: d.other });
+  });
+
+  /* ---------- Handover messages from earlier shifts ---------- */
+  var handovers = [], keptHo = [], KEPT_KEY = 'nomoq_eos_ho_kept_v1';
+  function saveKept(){ try { localStorage.setItem(KEPT_KEY, JSON.stringify({ idx: shiftIdx(formShift), ids: keptHo })); } catch (e) {} }
+  function loadKept(){
+    try { var k = JSON.parse(localStorage.getItem(KEPT_KEY) || 'null'); keptHo = (k && k.idx === shiftIdx(formShift)) ? k.ids : []; }
+    catch (e) { keptHo = []; }
+  }
+  function renderHandovers(){
+    var start = shiftStartAt(formShift).getTime();
+    // Hide this shift's own message (it is for the next crew).
+    var list = handovers.filter(function(h){
+      return !(h.shift === formShift.shift + ' shift' && h.ts && new Date(h.ts).getTime() >= start);
+    });
+    $('hoInPanel').hidden = !list.length;
+    $('hoCount').textContent = list.length ? String(list.length) : '';
+    var box = $('hoList'); box.innerHTML = '';
+    list.forEach(function(h){
+      var c = document.createElement('div'); c.className = 'ho-card' + (keptHo.indexOf(h.id) > -1 ? ' kept' : '');
+      var meta = document.createElement('div'); meta.className = 'ho-meta';
+      meta.textContent = [h.shift, h.line, h.from, h.time].filter(Boolean).join(' · ');
+      var msg = document.createElement('div'); msg.className = 'ho-msg'; msg.textContent = h.message;
+      var btns = document.createElement('div'); btns.className = 'ho-btns';
+      var keep = document.createElement('button'); keep.type = 'button'; keep.className = 'ho-keep'; keep.textContent = 'Keep for next shift';
+      var close = document.createElement('button'); close.type = 'button'; close.className = 'ho-close'; close.textContent = 'Close message';
+      keep.addEventListener('click', function(e){ e.stopPropagation(); keptHo.push(h.id); saveKept(); renderHandovers(); });
+      c.addEventListener('click', function(){ if (c.classList.contains('kept')) { keptHo = keptHo.filter(function(x){ return x !== h.id; }); saveKept(); renderHandovers(); } });
+      close.addEventListener('click', function(e){
+        e.stopPropagation();
+        if (!close.classList.contains('confirm')) {          // two taps so nothing closes by accident
+          close.classList.add('confirm'); close.textContent = 'Tap again – close for everyone';
+          setTimeout(function(){ close.classList.remove('confirm'); close.textContent = 'Close message'; }, 3500);
+          return;
+        }
+        handovers = handovers.filter(function(x){ return x.id !== h.id; }); renderHandovers();
+        if (hasRun) google.script.run.withFailureHandler(function(){ toast('Could not close the message – it will show again.'); loadHandovers(); }).closeHandover(h.id);
+      });
+      btns.appendChild(keep); btns.appendChild(close);
+      c.appendChild(meta); c.appendChild(msg); c.appendChild(btns);
+      box.appendChild(c);
+    });
+  }
+  function loadHandovers(){
+    if (!hasRun) { renderHandovers(); return; }
+    try {
+      google.script.run.withSuccessHandler(function(res){ handovers = res || []; renderHandovers(); })
+        .withFailureHandler(function(){}).getHandovers();
+    } catch (e) {}
+  }
+
+  /* ---------- Reminder pop-up ---------- */
+  function remind(text){
+    $('reminderText').textContent = text || 'Remember to clean the palletiser fingers with ethanol';
+    var r = $('reminder'); r.classList.add('show');
+    clearTimeout(remind.t); remind.t = setTimeout(function(){ r.classList.remove('show'); }, 9000);
+  }
+  $('reminderOk').addEventListener('click', function(){ $('reminder').classList.remove('show'); });
+
+  var lastOverview = null;
+  function num(v){ return v == null ? '<b class="na">–</b>' : '<b>' + Number(v).toLocaleString('de-DE') + '</b>'; }
+  function renderOverview(data){
+    var lines = (data && data.lines) || { 'Line 1': {}, 'Line 2': {} };
+    var html = '';
+    Object.keys(lines).forEach(function(name){
+      var L = lines[name];
+      html += '<div class="ov-line"><div class="ov-title">' + name + '</div>';
+      ['Early','Late','Night'].forEach(function(s){
+        html += '<div class="ov-row' + (s === currentShift ? ' now' : '') + '" data-shift="' + s + '">' +
+                '<span><span class="lbl">' + s + ' shift</span><small>' + SHIFT_HOURS[s] + '</small></span>' + num(L[s]) + '</div>';
+      });
+      html += '<div class="ov-row total"><span>24 h total</span>' + num(L.day) + '</div>';
+      html += '<div class="ov-row week"><span>Week total</span>' + num(L.week) + '</div>';
+      html += '</div>';
+    });
+    $('ovLines').innerHTML = html;
+    var d = new Date(); if (d.getHours() < 6) d.setDate(d.getDate() - 1); // production day starts 06:00
+    $('ovDay').textContent = (data && data.day) || (DAYS[d.getDay()] + ' ' + pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.');
+  }
+  function loadOverview(){
+    renderOverview(lastOverview);
+    if (!(window.google && google.script && google.script.run)) return;
+    try {
+      google.script.run
+        .withSuccessHandler(function(res){ lastOverview = res; renderOverview(res); })
+        .withFailureHandler(function(){ /* keep showing the last numbers */ })
+        .getShiftOverview();
+    } catch (e) { /* overview is optional – never block the form */ }
+  }
+
+  /* ---------- Downtime: each tap adds time (2 × 4 h = 8 h) ---------- */
+  function human(m){
+    var h = Math.floor(m/60), r = m % 60;
+    return ((h ? h + ' h ' : '') + (r ? r + ' min' : '')).trim() || '0 min';
+  }
+  function setDowntime(m){
+    m = Math.max(0, parseInt(m,10) || 0);
+    if (m > 1440) { m = 1440; toast('Downtime is capped at 24 h.'); }
+    $('downtime').value = m;
+    renderDowntime();
+  }
+  function renderDowntime(){
+    var m = parseInt($('downtime').value,10) || 0;
+    $('dtBig').textContent = human(m);
+    $('dtBig').classList.toggle('zero', m === 0);
+    $('dtHuman').textContent = m ? 'Tap again to add more' : 'No downtime';
+    $('reasonReq').hidden = m === 0;
+    if (!m) setErr('reason', false);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-add]'), function(c){
+    c.addEventListener('click', function(){
+      setDowntime((parseInt($('downtime').value,10) || 0) + parseInt(c.dataset.add,10));
+      var big = $('dtBig'); big.classList.remove('bump'); void big.offsetWidth; big.classList.add('bump');
+      saveDraft();
+    });
+  });
+  $('dtClear').addEventListener('click', function(){ setDowntime(0); saveDraft(); });
+
+  /* ---------- Photos ---------- */
+  var MAX_PHOTOS = 6, photos = [], pending = 0;
+
+  // Shrinks phone photos (often 5–10 MB) to ~1600 px JPEG so uploads are fast.
+  function compress(file){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function(){
+        var s = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        var d = c.toDataURL('image/jpeg', 0.82);
+        resolve({ type: 'image/jpeg', data: d.split(',')[1], preview: d });
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('Could not read ' + file.name)); };
+      img.src = url;
+    });
+  }
+
+  function renderThumbs(){
+    var box = $('thumbs'); box.innerHTML = '';
+    phonePhotos.forEach(function(p){
+      var t = document.createElement('div'); t.className = 'thumb';
+      if (p.thumb) { var im = document.createElement('img'); im.src = p.thumb; im.alt = 'Photo from phone'; t.appendChild(im); }
+      var b = document.createElement('span'); b.className = 'ph';
+      b.textContent = p.by ? 'from ' + p.by.split('@')[0] : 'PHONE'; b.title = p.by ? 'Sent from a phone by ' + p.by : '';
+      t.appendChild(b);
+      var x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = '×';
+      x.setAttribute('aria-label', 'Remove photo from phone');
+      x.addEventListener('click', function(){ removePhonePhoto(p.n); });
+      t.appendChild(x); box.appendChild(t);
+    });
+    photos.forEach(function(p, i){
+      var t = document.createElement('div'); t.className = 'thumb';
+      var im = document.createElement('img'); im.src = p.preview; im.alt = 'Photo ' + (i + 1);
+      var x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = '×';
+      x.setAttribute('aria-label', 'Remove photo ' + (i + 1));
+      x.addEventListener('click', function(){ photos.splice(i, 1); renderThumbs(); });
+      t.appendChild(im); t.appendChild(x); box.appendChild(t);
+    });
+    for (var k = 0; k < pending; k++){
+      var l = document.createElement('div'); l.className = 'thumb loading'; box.appendChild(l);
+    }
+  }
+
+  // Photos can come from the picker, from drag & drop (File Explorer, desktop, a phone plugged in by USB)
+  // or from Ctrl + V (a copied picture).
+  $('photoInput').addEventListener('change', function(){
+    var files = Array.prototype.slice.call(this.files || []);
+    this.value = '';
+    addPhotoFiles(files);
+  });
+  function addPhotoFiles(files){
+    files = files.filter(function(f){ return f && /^image\//.test(f.type || '') || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test((f && f.name) || ''); });
+    if (!files.length) { toast('Only photos can be added here.'); return; }
+    var room = MAX_PHOTOS - photos.length - pending - phonePhotos.length;
+    if (files.length > room) { toast('You can add up to ' + MAX_PHOTOS + ' photos.'); files = files.slice(0, Math.max(0, room)); }
+    files.forEach(function(f){
+      pending++; renderThumbs();
+      compress(f).then(function(p){ photos.push(p); })
+        .catch(function(e){ toast(e.message); })
+        .then(function(){ pending--; renderThumbs(); });
+    });
+  }
+  (function(){
+    var zone = document.querySelector('.photos'), depth = 0;
+    function hasFiles(e){ return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') > -1; }
+    zone.addEventListener('dragenter', function(e){ if (!hasFiles(e)) return; e.preventDefault(); depth++; zone.classList.add('drop'); });
+    zone.addEventListener('dragover', function(e){ if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    zone.addEventListener('dragleave', function(){ depth = Math.max(0, depth - 1); if (!depth) zone.classList.remove('drop'); });
+    zone.addEventListener('drop', function(e){
+      if (!hasFiles(e)) return;
+      e.preventDefault(); e.stopPropagation(); depth = 0; zone.classList.remove('drop');
+      addPhotoFiles(Array.prototype.slice.call(e.dataTransfer.files || []));
+    });
+    // Dropped next to the box by mistake: don't let the browser open the photo instead of the form.
+    window.addEventListener('dragover', function(e){ if (hasFiles(e)) e.preventDefault(); });
+    window.addEventListener('drop', function(e){ if (hasFiles(e)) { e.preventDefault(); toast('Drop the photos on the “Add photos” box.', 'warn'); } });
+    document.addEventListener('paste', function(e){
+      var items = (e.clipboardData && e.clipboardData.files) ? Array.prototype.slice.call(e.clipboardData.files) : [];
+      var imgs = items.filter(function(f){ return /^image\//.test(f.type); });
+      if (!imgs.length) return;                       // normal text paste
+      e.preventDefault(); addPhotoFiles(imgs);
+    });
+  })();
+
+  /* ---------- Photos from the printer's phone (QR code) ---------- */
+  var phoneToken = null, phoneUrl = null, phonePhotos = [], pollTimer = null, pollUntil = 0;
+  var hasRun = !!(window.google && google.script && google.script.run);
+
+  function drawQr(url){
+    try {
+      var qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+      $('qrBox').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true, alt: 'QR code to add photos from your phone' });
+      $('qrLink').href = url; $('qrLink').title = 'Same link as the QR code (NOMOQ sign-in first)'; $('qrLink').hidden = false;
+      $('qrHint').hidden = !/^https:\/\/(accounts|script)\.google\.com\//.test(url);   // no hint when the QR goes through the forwarding page
+    } catch (e) { $('qrBox').textContent = 'Could not draw the code.'; }
+  }
+  function startPhone(){
+    $('qrPanel').hidden = false; $('phoneBtn').classList.add('on'); $('phoneBtn').setAttribute('aria-expanded', 'true');
+    if (phoneToken && phoneUrl) { drawQr(phoneUrl); poll(10); return; }
+    if (!hasRun) { $('qrBox').textContent = 'Only works in the live form.'; return; }
+    $('qrBox').textContent = 'Loading…';
+    google.script.run
+      .withSuccessHandler(function(res){
+        if (!res || res.error) {
+          $('qrBox').textContent = 'Phone upload is not set up yet.';
+          toast(res && res.error ? res.error : 'Phone upload is not set up yet.');
+          return;
+        }
+        phoneToken = res.token; phoneUrl = res.url; drawQr(res.url); saveDraft(); poll(10);
+      })
+      .withFailureHandler(function(err){ $('qrBox').textContent = 'Could not create a code.'; })
+      .newPhoneSession();
+  }
+  function stopPhone(){
+    $('qrPanel').hidden = true; $('phoneBtn').classList.remove('on'); $('phoneBtn').setAttribute('aria-expanded', 'false');
+    poll(2); // keep checking a little longer for photos still uploading
+  }
+  // Ask the server for new phone photos every 3 s, for the next `minutes`.
+  function poll(minutes){
+    pollUntil = Math.max(pollUntil, Date.now() + minutes * 60000);
+    if (pollTimer) return;
+    pollTimer = 1;
+    (function tickPoll(){
+      if (!phoneToken || !hasRun || Date.now() > pollUntil) { pollTimer = null; return; }
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (res.expired) { phoneToken = null; phoneUrl = null; phonePhotos = []; renderThumbs(); saveDraft();
+            if (!$('qrPanel').hidden) startPhone(); }
+          else if (JSON.stringify(res.photos.map(function(p){ return p.n; })) !== JSON.stringify(phonePhotos.map(function(p){ return p.n; }))) {
+            phonePhotos = res.photos; renderThumbs();
+          }
+          pollTimer = setTimeout(tickPoll, 3000);
+        })
+        .withFailureHandler(function(){ pollTimer = setTimeout(tickPoll, 6000); })
+        .getPhoneSession(phoneToken);
+    })();
+  }
+  function removePhonePhoto(n){
+    phonePhotos = phonePhotos.filter(function(p){ return p.n !== n; }); renderThumbs();
+    if (hasRun && phoneToken) google.script.run.withFailureHandler(function(){}).removePhonePhoto(phoneToken, n);
+  }
+  function resetPhone(){
+    phoneToken = null; phoneUrl = null; phonePhotos = []; pollUntil = 0;
+    $('qrPanel').hidden = true; $('phoneBtn').classList.remove('on'); renderThumbs();
+  }
+  $('phoneBtn').addEventListener('click', function(){ $('qrPanel').hidden ? startPhone() : stopPhone(); });
+  $('qrClose').addEventListener('click', stopPhone);
+  window.addEventListener('focus', function(){ if (phoneToken) poll(1); });
+
+  /* ---------- Validation ---------- */
+  function setErr(f, bad){
+    var el = document.querySelector('[data-f="'+f+'"]');
+    if (el) el.classList.toggle('invalid', bad);
+    return bad;
+  }
+  function validate(){
+    // An unreported printing problem stops the submit (same gentle warning as the + button).
+    var gate = reportMissing('edit') || reportMissing('entry');
+    if (!gate) {
+      var unsent = moList.findIndex(function(m){ return m.problem && !m.sentAt; });
+      if (unsent > -1) { moSel = unsent; drawTags(); gate = reportMissing('edit'); }
+    }
+    if (gate) { warnReport(gate); return false; }
+    var tm = tasksMissing();
+    if (tm.length && tm[0].what === 'the previous shift question') {
+      toast('Before submitting, please answer the previous shift question.', 'warn');
+      $('prevPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (tm[0].el.tagName === 'TEXTAREA') tm[0].el.focus();
+      return false;
+    }
+    if (prevAnswer && !prevLocked) { prevLocked = true; paintPrev(); }   // answered but Send not pressed
+    if (tm.length) { askCleaning(tm); return false; }
+    var d = collect(), first = null;
+    function check(f, bad){ if (setErr(f, bad) && !first) first = f; }
+    if (setErr('crew', !d.person1 && !d.person2 && !d.other.trim())) first = 'person1';
+    check('machine',   !d.machine);
+    closeEdit(); drawTags();                           // apply an open tag edit first
+    var moBadEl = null;
+    if (!$('moEntry').value.trim() && ($('moEntryProblem').value.trim() || $('moEntrySw').value.trim())) moBadEl = $('moEntry');
+    if (moSel >= 0 && !$('moEditNo').value.trim()) moBadEl = $('moEditNo');
+    if (moBadEl) moBadEl.classList.add('bad');
+    if (setErr('mosList', !!moBadEl) && !first) first = 'mosList';
+    check('reason',    (parseInt(d.downtime,10)||0) > 0 && !d.reason.trim());
+    var fmtBad = false;
+    Array.prototype.forEach.call(document.querySelectorAll('.fmt-row'), function(row){
+      var v = row.querySelectorAll('select'), bad = !v[0].value !== !v[1].value;
+      row.classList.toggle('bad', bad); if (bad) fmtBad = true;
+    });
+    if (setErr('formats', fmtBad) && !first) {
+      first = 'formats';
+    }
+    if (first) {
+      var el = first === 'formats' ? document.querySelector('.fmt-row.bad select.empty')
+             : first === 'mosList' ? document.querySelector('[data-f="mosList"] .bad')
+             : $(first);
+      if (el) el.focus();
+      return false;
+    }
+    return true;
+  }
+  FIELDS.forEach(function(f){
+    $(f).addEventListener('input', function(){ setErr(f, false); if (f === 'downtime') setErr('reason', false); });
+    $(f).addEventListener('change', function(){ setErr(f, false); });
+  });
+
+  /* ---------- Modal ---------- */
+  var ICON_OK = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  var ICON_RESET = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+  var onOk = null;
+  var onCancel = null;
+  function openModal(o){
+    onCancel = o.onCancel || null;
+    $('mInput').hidden = !o.input; $('mInput').value = ''; $('mInput').placeholder = o.placeholder || '';
+    $('mIcon').className = 'm-icon ' + o.tone;
+    $('mIcon').innerHTML = o.icon;
+    $('mTitle').textContent = o.title;
+    $('mText').textContent = o.text;
+    $('mCancel').textContent = o.cancel;
+    $('mOk').textContent = o.ok;
+    onOk = o.onOk;
+    $('overlay').classList.add('show');
+    (o.input ? $('mInput') : $('mOk')).focus();
+  }
+  function closeModal(){ $('overlay').classList.remove('show'); onOk = null; onCancel = null; }
+  $('mCancel').addEventListener('click', function(){ var f = onCancel; closeModal(); if (f) f(); });
+  // onOk may return false to keep the pop-up open (e.g. a required reason is empty).
+  $('mOk').addEventListener('click', function(){
+    var f = onOk, v = $('mInput').value;
+    if (f && f(v) === false) return;
+    if (onOk === f) closeModal();             // f may have opened another pop-up
+  });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeModal(); });
+
+  function toast(msg, kind){              // kind: true/'good' = green, 'warn' = soft amber, empty = red
+    var t = $('toast'); t.textContent = msg; t.classList.add('show');
+    t.classList.toggle('good', kind === true || kind === 'good');
+    t.classList.toggle('warn', kind === 'warn');
+    clearTimeout(toast.t);
+    toast.t = setTimeout(function(){ t.classList.remove('show'); }, Math.max(4500, String(msg).length * 70)); // longer messages stay longer
+  }
+
+  /* ---------- Reset ---------- */
+  function clearForm(){
+    $('form').reset();
+    $('machine').selectedIndex = 0;
+    setDowntime(0);
+    FIELDS.forEach(function(f){ setErr(f, false); });
+    setErr('crew', false);
+    $('person1').value = ''; $('person2').value = ''; tintSelects();
+    draft = null;
+    renderFormats([]); setErr('formats', false);
+    renderMos([]); setErr('mosList', false);
+    clearDraft();
+    photos = []; resetPhone();
+    prevAnswer = ''; prevLocked = false; $('prevReason').value = ''; cleanState = {}; endState = {};
+    endExpanded = false; cleanExpanded = true; $('handover').value = ''; handoverSent = []; renderHoSent();
+    $('prevPanel').classList.remove('attn');
+    if (formShift.submitted) advanceShift(); else renderTasks();
+    $('saved').textContent = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    $('person1').focus();
+  }
+  $('resetBtn').addEventListener('click', function(){
+    openModal({
+      tone: 'warn', icon: ICON_RESET,
+      title: 'Clear the form?',
+      text: 'Do you want to clear this form and start from the beginning?',
+      cancel: 'Cancel', ok: 'Yes, clear form',
+      onOk: clearForm
+    });
+  });
+
+  /* ---------- Submit ---------- */
+  function setBusy(b){
+    $('submitBtn').disabled = b; $('resetBtn').disabled = b;
+    $('submitBtn').classList.toggle('busy', b);
+    $('submitBtn').querySelector('.lbl').textContent = b ? ((photos.length || phonePhotos.length) ? 'Saving photos…' : 'Sending…') : 'Submit report';
+  }
+  $('form').addEventListener('submit', function(e){
+    e.preventDefault();
+    if (!validate()) return;
+    if (pending > 0) { toast('Photos are still loading – one moment.'); return; }
+    setBusy(true);
+    var payload = collect();
+    payload.photos = photos.map(function(p){ return { type: p.type, data: p.data }; });
+    if (phonePhotos.length + photos.length > MAX_PHOTOS) { setBusy(false); toast('Maximum ' + MAX_PHOTOS + ' photos per report – remove some.'); return; }
+    payload.phoneToken = phonePhotos.length ? phoneToken : null;
+    var cl = currentCleaning();
+    payload.formShift = formShift.shift; payload.formDay = formShift.day;
+    payload.cleaningName = cl.name;
+    payload.cleaning = taskPayload('clean', cl.tasks, cleanState);
+    var endAll = taskPayload('end', (cleaningLists && cleaningLists.end) || [], endState);
+    payload.endTasks = endAll;
+    delete payload.cleanState; delete payload.endState;
+    payload.handoversSent = handoverSent.map(function(h){ return h.text; }); delete payload.handoverSent;
+    google.script.run
+      .withSuccessHandler(function(res){
+        setBusy(false);
+        if (payload.phoneToken) resetPhone();   // those phone photos now belong to the sent report
+        // One report per shift: clear straight away and get ready for the next shift.
+        // Before the next shift starts this shows the blurred "… starts at 14:00" screen.
+        var sentShift = formShift.shift;
+        formShift.submitted = true; saveShift();
+        clearForm();
+        setTimeout(sendLive, 500);                 // managers see "report submitted" straight away
+        if (!isWaiting()) toast(sentShift + ' shift report submitted ✓ (' + res.timestamp + ')', 'good');
+      })
+      .withFailureHandler(function(err){
+        setBusy(false);
+        toast('Not submitted: ' + (err && err.message ? err.message : 'please try again.'));
+      })
+      .submitReport(payload);
+  });
+
+  /* ---------- Start ---------- */
+  loadShift();
+  loadDraft();
+  loadKept();
+  renderFormats(draft && draft.formats);
+  renderMos(draft && Array.isArray(draft.mos) ? draft.mos : []);
+  renderTasks(); renderHoSent();
+  renderShift(); setInterval(renderShift, 10000);
+  loadOverview(); setInterval(loadOverview, 60000);
+  loadHandovers(); setInterval(loadHandovers, 120000);
+  // Important messages must show up fast: check every 15 s, and right away when the window comes back to the front.
+  loadImportant(); setInterval(loadImportant, 15000);
+  setTimeout(sendLive, 3000); setInterval(sendLive, 60000);
+  window.addEventListener('focus', loadImportant);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) loadImportant(); });
+  loadNames();
+  renderDowntime();
+  if (draft && draft.phoneToken) { phoneToken = draft.phoneToken; phoneUrl = draft.phoneUrl || null; poll(1); }
+</script>
+</body>
+</html>
